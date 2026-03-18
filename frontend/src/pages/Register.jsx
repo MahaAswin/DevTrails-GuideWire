@@ -15,9 +15,11 @@ const Register = () => {
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
+    phone: '',
     password: '',
     platform: defaultPlatform,
-    city: ''
+    city: '',
+    referredBy: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -129,6 +131,17 @@ const Register = () => {
           </div>
 
           <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Phone Number</label>
+            <input 
+              type="tel" required
+              value={formData.phone}
+              placeholder="+919876543210"
+              onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 outline-none focus:border-emerald-500 rounded-xl px-4 py-3 font-bold transition-all"
+            />
+          </div>
+
+          <div className="space-y-1.5">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Password</label>
             <input 
               type="password" required minLength="6"
@@ -136,6 +149,17 @@ const Register = () => {
               placeholder="Password (min 6 chars)"
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 outline-none focus:border-emerald-500 rounded-xl px-4 py-3 font-bold transition-all"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Referral Code (Optional)</label>
+            <input 
+              type="text"
+              value={formData.referredBy}
+              placeholder="Ex: REF123"
+              onChange={(e) => setFormData({...formData, referredBy: e.target.value.toUpperCase()})}
+              className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 outline-none focus:border-emerald-500 rounded-xl px-4 py-3 font-bold transition-all uppercase"
             />
           </div>
 

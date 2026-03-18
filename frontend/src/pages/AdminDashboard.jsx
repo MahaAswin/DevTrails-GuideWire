@@ -1,26 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileText, Activity, ShieldAlert, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, FileText, Activity, ShieldAlert, LogOut } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const [data, setData] = useState({ users: [], policies: [], claims: [], reports: [] });
+  const [data, setData] = useState({ users: [], policies: [], claims: [], reports: [], rewardPayouts: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [usersRes, policiesRes, claimsRes, reportsRes] = await Promise.all([
+        const [usersRes, policiesRes, claimsRes, reportsRes, rewardsRes] = await Promise.all([
           fetch('http://localhost:8000/admin/users'),
           fetch('http://localhost:8000/admin/policies'),
           fetch('http://localhost:8000/admin/claims'),
-          fetch('http://localhost:8000/admin/pending-claims')
+          fetch('http://localhost:8000/admin/pending-claims'),
+          fetch('http://localhost:8000/admin/reward-payouts/pending')
         ]);
         
         const users = await usersRes.json();
         const policies = await policiesRes.json();
         const claims = await claimsRes.json();
         const reports = await reportsRes.json();
+        const rewardPayouts = await rewardsRes.json();
         
-        setData({ users, policies, claims, reports });
+        setData({ users, policies, claims, reports, rewardPayouts });
       } catch (err) {
         console.error("Failed to fetch admin data", err);
       } finally {
@@ -54,6 +57,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleProcessRewardPayout = async (payoutId, status) => {
+    try {
+      const res = await fetch('http://localhost:8000/admin/process-reward-payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payout_id: payoutId, status: status })
+      });
+      if (res.ok) {
+        alert(`Payout ${status === 'approved' ? 'approved' : 'rejected'}.`);
+        // Refresh rewards list
+        const rewardsRes = await fetch('http://localhost:8000/admin/reward-payouts/pending');
+        const rewardPayouts = await rewardsRes.json();
+        setData(prev => ({ ...prev, rewardPayouts }));
+      } else {
+        alert("Failed to process payout");
+      }
+    } catch (err) {
+      alert("Error connecting to server");
+    }
+  };
+
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('shieldgig_user');
+    navigate('/login', { replace: true });
+  };
+
   if (loading) return <div className="p-12 text-center text-slate-500 animate-pulse font-medium">Loading ShieldGig Admin Data...</div>;
 
   return (
@@ -63,6 +94,12 @@ const AdminDashboard = () => {
           <h2 className="text-3xl font-bold tracking-tight mb-2">Admin Command Center</h2>
           <p className="text-slate-500 dark:text-slate-400">Total system overview and management hub.</p>
         </div>
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]"
+        >
+          <LogOut size={16} /> Exit Secure Session
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -187,6 +224,55 @@ const AdminDashboard = () => {
                   </tr>
                 ))}
                 {data.policies.length === 0 && <tr><td colSpan="3" className="text-center py-6 text-slate-500">No policies found.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Reward Payouts Desk */}
+        <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col lg:col-span-2">
+          <div className="p-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-emerald-500/5">
+             <h3 className="font-bold flex items-center gap-2 italic uppercase tracking-tighter text-emerald-600"><ShieldAlert size={18}/> Reward Approval Desk</h3>
+             <span className="text-[10px] font-black bg-emerald-500 text-white px-3 py-1 rounded-full uppercase tracking-widest">{data.rewardPayouts?.length || 0} New Requests</span>
+          </div>
+          <div className="overflow-x-auto p-4 flex-1">
+            <table className="w-full text-left text-sm">
+              <thead><tr className="text-slate-500 uppercase tracking-wide border-b border-slate-100 dark:border-slate-800 text-xs">
+                <th className="pb-3 pt-1 px-4 text-left">Worker</th>
+                <th className="pb-3 pt-1 px-4 text-left">Reward Details</th>
+                <th className="pb-3 pt-1 px-4 text-left">Requested Amount</th>
+                <th className="pb-3 pt-1 px-4 text-right">Actions</th>
+              </tr></thead>
+              <tbody>
+                {data.rewardPayouts?.map((rp, i) => (
+                  <tr key={rp.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="py-4 px-4 font-bold flex flex-col">
+                       {rp.user_name}
+                       <span className="text-[10px] font-medium text-slate-400 normal-case">{rp.user_email}</span>
+                    </td>
+                    <td className="py-4 px-4">
+                       <span className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                          1000 Points Exchange
+                       </span>
+                    </td>
+                    <td className="py-4 px-4 font-black italic text-emerald-500 text-lg tracking-tighter">₹{rp.amount_inr}</td>
+                    <td className="py-4 px-4 text-right flex justify-end gap-2">
+                       <button 
+                         onClick={() => handleProcessRewardPayout(rp.id, 'approved')}
+                         className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/10 active:scale-95"
+                       >
+                         Approve
+                       </button>
+                       <button 
+                         onClick={() => handleProcessRewardPayout(rp.id, 'rejected')}
+                         className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                       >
+                         Reject
+                       </button>
+                    </td>
+                  </tr>
+                ))}
+                {(!data.rewardPayouts || data.rewardPayouts.length === 0) && <tr><td colSpan="4" className="text-center py-10 text-slate-400 font-bold uppercase tracking-widest text-[10px]">Vault Secured: No pending reward requests.</td></tr>}
               </tbody>
             </table>
           </div>

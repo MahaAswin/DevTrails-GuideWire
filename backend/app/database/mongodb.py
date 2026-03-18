@@ -28,6 +28,7 @@ payments_collection = db["payments"]
 claim_reports_collection = db["claim_reports"]
 wallet_transactions_collection = db["wallet_transactions"]
 weather_claims_collection = db["weather_claims"]
+reward_payouts_collection = db["reward_payouts"]
 
 def get_db():
     return db

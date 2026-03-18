@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Activity, ShieldAlert, Heart, Siren, BrainCircuit, Settings, Wallet, CreditCard, ShieldCheck, Layers } from 'lucide-react';
+import { Home, LayoutDashboard, Users, FileText, Activity, ShieldAlert, Heart, Siren, BrainCircuit, Settings, Wallet, CreditCard, ShieldCheck, Layers } from 'lucide-react';
 
 const Sidebar = () => {
   const location = useLocation();
   const isWorkerFlow = location.pathname === '/worker-dashboard' || location.pathname.startsWith('/worker/');
 
   const adminNav = [
+    { name: 'Home', path: '/admin/dashboard', icon: Home },
     { name: 'Platform Overview', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Workers', path: '/workers', icon: Users },
     { name: 'All Policies', path: '/policies', icon: FileText },
@@ -18,7 +19,7 @@ const Sidebar = () => {
   ];
 
   const workerNav = [
-    { name: 'My Dashboard', path: '/worker-dashboard', icon: LayoutDashboard },
+    { name: 'Home', path: '/worker-dashboard', icon: Home },
     { name: 'My Policies', path: '/worker/policies', icon: FileText },
     { name: 'My Claims', path: '/worker/claims', icon: Activity },
     { name: 'Report Emergency', path: '/worker/report', icon: Siren },

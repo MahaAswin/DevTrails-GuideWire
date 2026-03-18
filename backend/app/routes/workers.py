@@ -30,10 +30,22 @@ async def activate_policy(request: ActivatePolicyRequest):
         raise HTTPException(status_code=400, detail=f"Insufficient wallet balance. Policy requires ₹{premium}, you have ₹{current_balance}.")
     
     # Update user's active policies and deduct balance
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    expiry = now + timedelta(days=7) # Weekly policy
+    
+    subscription = {
+        "policy_id": str(policy.get("_id")) or policy.get("name"),
+        "policy_name": policy.get("name"),
+        "activated_at": now,
+        "expiry_date": expiry
+    }
+
     users_collection.update_one(
         {"email": request.worker_email},
         {
             "$addToSet": {"active_policies": str(policy.get("_id")) or policy.get("name")},
+            "$push": {"policy_subscriptions": subscription},
             "$inc": {"wallet_balance": -premium}
         }
     )

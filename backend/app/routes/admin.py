@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from pydantic import BaseModel, Field
-from app.database.mongodb import users_collection, policies_collection, claims_collection, reports_collection, payments_collection, claim_reports_collection, wallet_transactions_collection, DATABASE_NAME
+from app.database.mongodb import users_collection, policies_collection, claims_collection, reports_collection, payments_collection, claim_reports_collection, wallet_transactions_collection, reward_payouts_collection, DATABASE_NAME
 from datetime import datetime
 from bson import ObjectId
 
@@ -207,4 +207,57 @@ async def resolve_report(payload: dict = Body(...)):
         "created_at": datetime.utcnow()
     })
     
-    return {"message": f"Successfully paid out ₹{payout_amount} to worker wallet."}
+@router.get("/reward-payouts/pending")
+async def get_pending_reward_payouts():
+    payouts = []
+    for p in reward_payouts_collection.find({"status": "pending"}):
+        p["id"] = str(p["_id"])
+        del p["_id"]
+        payouts.append(p)
+    return payouts
+
+@router.post("/process-reward-payout")
+async def process_reward_payout(payload: dict = Body(...)):
+    payout_id = payload.get("payout_id")
+    status_choice = payload.get("status") # 'approved' or 'rejected'
+    
+    payout = reward_payouts_collection.find_one({"_id": ObjectId(payout_id)})
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout request not found")
+        
+    user_id = payout["user_id"]
+    
+    if status_choice == "approved":
+        # Credit ₹10 to wallet
+        users_collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$inc": {"wallet_balance": 10}}
+        )
+        
+        # Log to wallet transactions
+        wallet_transactions_collection.insert_one({
+            "user_id": user_id,
+            "type": "reward_credit",
+            "amount": 10,
+            "description": "Reward Points Exchange (1000 pts -> ₹10)",
+            "status": "approved",
+            "created_at": datetime.utcnow()
+        })
+        
+        reward_payouts_collection.update_one(
+            {"_id": ObjectId(payout_id)},
+            {"$set": {"status": "approved", "processed_at": datetime.utcnow()}}
+        )
+        return {"message": "Payout approved! ₹10 credited to worker wallet."}
+    else:
+        # Refund 1000 points
+        users_collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$inc": {"rewardPoints": 1000}}
+        )
+        
+        reward_payouts_collection.update_one(
+            {"_id": ObjectId(payout_id)},
+            {"$set": {"status": "rejected", "processed_at": datetime.utcnow()}}
+        )
+        return {"message": "Payout rejected. 1000 points refunded to worker."}

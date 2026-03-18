@@ -7,8 +7,8 @@ from bson import ObjectId
 
 router = APIRouter()
 
-@router.get("/check")
-async def check_weather(city: str):
+@router.get("/current")
+async def get_current_weather(city: str):
     weather_data = await weather_service.get_weather(city)
     return weather_data
 

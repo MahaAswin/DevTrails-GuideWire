@@ -9,6 +9,10 @@ const TopNav = () => {
   const [user, setUser] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
+  const [menuView, setMenuView] = useState('main'); // 'main', 'account', 'prefs'
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [tempPhone, setTempPhone] = useState('');
+  const [syncing, setSyncing] = useState(false);
   
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -30,6 +34,59 @@ const TopNav = () => {
     navigate('/');
   };
 
+  const fetchUserProfile = async (userId) => {
+    if (!userId || syncing) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`http://localhost:8000/user/profile/${userId}`);
+      if (res.ok) {
+        const freshUser = await res.json();
+        setUser(freshUser);
+        localStorage.setItem('shieldgig_user', JSON.stringify(freshUser));
+      }
+    } catch (err) {
+      console.error("Profile sync failed", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleUpdatePhone = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/user/update-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id || user._id, phone: tempPhone })
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+        localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
+        setIsEditingPhone(false);
+      }
+    } catch (err) {
+      console.error("Failed to update phone", err);
+    }
+  };
+
+  const handleToggleReminder = async () => {
+    try {
+      const newStatus = !user.reminderEnabled;
+      const res = await fetch('http://localhost:8000/user/reminder-toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id || user._id, enabled: newStatus })
+      });
+      if (res.ok) {
+        const updatedUser = { ...user, reminderEnabled: newStatus };
+        setUser(updatedUser);
+        localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
+      }
+    } catch (err) {
+      console.error("Failed to toggle", err);
+    }
+  };
+
   const getInitials = (name) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -40,8 +97,8 @@ const TopNav = () => {
   return (
     <header className="h-16 px-6 sticky top-0 z-50 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0B0F19]/80 backdrop-blur-md">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Shield className="text-white w-6 h-6" />
+        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-black italic">
+          <Shield className="w-6 h-6" />
         </div>
         <h1 className="text-xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-emerald-400 uppercase">
           ShieldGig
@@ -54,15 +111,12 @@ const TopNav = () => {
           <input
             type="text"
             placeholder="Search workers, claims..."
-            className="pl-10 pr-4 py-2 w-72 rounded-full bg-slate-100 dark:bg-[#111827] border-transparent focus:bg-white dark:focus:bg-[#0B0F19] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm outline-none dark:text-white"
+            className="pl-10 pr-4 py-2 w-72 rounded-full bg-slate-100 dark:bg-[#111827] border-transparent focus:bg-white dark:focus:bg-[#0B0F19] focus:border-emerald-500 transition-all text-sm outline-none dark:text-white"
           />
         </div>
 
         <div className="flex items-center gap-4 border-l border-slate-200 dark:border-slate-700 pl-6 h-full relative">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-          >
+          <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors">
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
           
@@ -82,23 +136,11 @@ const TopNav = () => {
                   <button className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">Mark all read</button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications.map(n => (
-                    <div key={n.id} className={`p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors flex gap-3 ${n.unread ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
-                      <div className="mt-1">
-                        {n.title.includes('Claim') ? <CheckCircle2 className="text-emerald-500 w-5 h-5"/> : <Bell className="text-indigo-500 w-5 h-5"/>}
-                      </div>
-                      <div className="flex-1">
-                         <div className="flex justify-between items-start mb-1">
-                           <h4 className={`text-sm font-semibold ${n.unread ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-800 dark:text-slate-200'}`}>{n.title}</h4>
-                           <span className="text-xs text-slate-400">{n.time}</span>
-                         </div>
-                         <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">{n.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-3 text-center border-t border-slate-100 dark:border-slate-700">
-                  <button className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">View All Activity</button>
+                  {notifications.length === 0 ? (
+                    <p className="p-10 text-center text-slate-500 text-sm">No new notifications</p>
+                  ) : (
+                    notifications.map(n => <div key={n.id} className="p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">...</div>)
+                  )}
                 </div>
               </div>
             )}
@@ -106,44 +148,116 @@ const TopNav = () => {
 
           <div className="relative" ref={profileRef}>
             <button 
-              onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}
+              onClick={() => { 
+                const newState = !showProfile;
+                setShowProfile(newState); 
+                setMenuView('main'); 
+                setShowNotif(false); 
+                setIsEditingPhone(false);
+                if (newState && user) fetchUserProfile(user.id || user._id);
+              }}
               className="ml-2 w-10 h-10 rounded-full bg-emerald-500 border-2 border-white dark:border-[#111827] flex items-center justify-center text-white font-bold shadow-sm hover:shadow-md hover:scale-105 transition-all text-sm"
             >
               {getInitials(user?.name)}
             </button>
             
             {showProfile && (
-              <div className="absolute top-14 right-0 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-                <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50">
-                   <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-inner">
-                     {getInitials(user?.name)}
-                   </div>
-                   <div className="overflow-hidden">
-                     <p className="font-bold text-slate-900 dark:text-white truncate">{user?.name || 'Guest User'}</p>
-                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || 'Not logged in'}</p>
-                     {user?.role && (
-                       <span className="inline-block mt-1 px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-full">
-                         {user.role} {user.platform && user.platform !== 'ShieldGig' ? `• ${user.platform}` : ''}
-                       </span>
-                     )}
-                   </div>
-                </div>
-                <div className="p-2">
-                  <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                    <User size={16} /> My Account
-                  </button>
-                  <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                    <Settings size={16} /> Preferences
-                  </button>
-                </div>
-                <div className="p-2 border-t border-slate-100 dark:border-slate-700">
-                  <button 
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
-                  >
-                    <LogOut size={16} /> Sign Out
-                  </button>
-                </div>
+              <div className="absolute top-14 right-0 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                
+                {menuView === 'main' && (
+                  <>
+                    <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50">
+                       <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-inner">
+                         {getInitials(user?.name)}
+                       </div>
+                       <div className="overflow-hidden">
+                         <p className="font-bold text-slate-900 dark:text-white truncate text-sm">{user?.name || 'Guest User'}</p>
+                         <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate uppercase font-black">{user?.role || 'User'} Node</p>
+                       </div>
+                    </div>
+                    <div className="p-2 text-sm">
+                      <button onClick={() => setMenuView('account')} className="w-full flex items-center justify-between px-4 py-2.5 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                        <div className="flex items-center gap-3"><User size={16} /> My Account</div>
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                      </button>
+                      <button onClick={() => setMenuView('prefs')} className="w-full flex items-center justify-between px-4 py-2.5 font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                        <div className="flex items-center gap-3"><Settings size={16} /> Preferences</div>
+                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                      </button>
+                    </div>
+                    <div className="p-2 border-t border-slate-100 dark:border-slate-700">
+                      <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors">
+                        <LogOut size={16} /> Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {menuView === 'account' && (
+                  <div className="p-5 space-y-4">
+                    <button onClick={() => setMenuView('main')} className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest hover:underline">← Back to Menu</button>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Phone Number</p>
+                          {!isEditingPhone && (
+                            <button 
+                              onClick={() => { setTempPhone(user?.phone || ''); setIsEditingPhone(true); }}
+                              className="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:underline"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                        {isEditingPhone ? (
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={tempPhone} 
+                              onChange={(e) => setTempPhone(e.target.value)}
+                              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold dark:text-white outline-none focus:ring-1 focus:ring-emerald-500"
+                              autoFocus
+                            />
+                            <button onClick={handleUpdatePhone} className="bg-emerald-500 text-white p-1 rounded-lg"><CheckCircle2 size={14} /></button>
+                            <button onClick={() => setIsEditingPhone(false)} className="bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 p-1 rounded-lg text-[10px] font-bold px-2">X</button>
+                          </div>
+                        ) : (
+                          <p className="font-bold text-sm text-slate-700 dark:text-slate-200">{user?.phone || 'Not Linked'}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Referral Code</p>
+                        <div className="flex items-center gap-2">
+                          <code className="bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded font-black text-emerald-500">{user?.referralCode || 'GENERATING...'}</code>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                        <p className="text-[9px] font-black uppercase text-emerald-500 tracking-widest">Rewards Balance</p>
+                        <p className="text-xl font-black italic text-emerald-500">{user?.rewardPoints || 0} PTS</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {menuView === 'prefs' && (
+                  <div className="p-5 space-y-4">
+                    <button onClick={() => setMenuView('main')} className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest hover:underline">← Back to Menu</button>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                         <div>
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Policy Reminders</p>
+                            <p className="text-[9px] text-slate-500 font-medium">Notify 3 days before expiry</p>
+                         </div>
+                         <button 
+                           onClick={handleToggleReminder}
+                           className={`w-10 h-5 rounded-full relative transition-all ${user?.reminderEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                         >
+                           <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${user?.reminderEnabled ? 'left-5.5' : 'left-0.5'}`}></div>
+                         </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -6,6 +6,7 @@ class PaymentSubmit(BaseModel):
     amount: float = Field(..., gt=0)
     payment_method: str # UPI or Bank Transfer
     transaction_id: str
+    proofImage: str # Required field for screenshot filename or base64
 
 class PaymentResponse(BaseModel):
     id: str

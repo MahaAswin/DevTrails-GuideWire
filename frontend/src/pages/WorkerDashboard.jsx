@@ -64,6 +64,46 @@ const WorkerDashboard = () => {
     }
   };
 
+  const handleToggleReminder = async () => {
+    try {
+      const newStatus = !user.reminderEnabled;
+      const res = await fetch('http://localhost:8000/user/reminder-toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, enabled: newStatus })
+      });
+      if (res.ok) {
+        const updatedUser = { ...user, reminderEnabled: newStatus };
+        setUser(updatedUser);
+        localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
+      }
+    } catch (err) {
+      console.error("Failed to toggle reminder", err);
+    }
+  };
+
+  const handleClaimReward = async () => {
+    if (user.rewardPoints < 1000) return;
+    try {
+      const res = await fetch('http://localhost:8000/user/claim-reward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+      if (res.ok) {
+        alert("Reward claimed! 1000 points deducted.");
+        const updatedUser = { ...user, rewardPoints: user.rewardPoints - 1000 };
+        setUser(updatedUser);
+        localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
+      } else {
+        const data = await res.json();
+        alert(data.detail || "Claim failed");
+      }
+    } catch (err) {
+      console.error("Failed to claim reward", err);
+    }
+  };
+
   // Platform specific theme colors
   const platformColor = user.platform.toLowerCase() === 'zomato' ? 'rose' : 
                         user.platform.toLowerCase() === 'swiggy' ? 'amber' :
@@ -82,9 +122,38 @@ const WorkerDashboard = () => {
           </h2>
           <p className="text-slate-500 dark:text-slate-400">Welcome back, {user.name}. View available protections for your city ({user.city}).</p>
         </div>
+        <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800">
+           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Reminders</span>
+           <button 
+             onClick={handleToggleReminder}
+             className={`w-12 h-6 rounded-full transition-all relative ${user.reminderEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+           >
+             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${user.reminderEnabled ? 'left-7' : 'left-1'}`}></div>
+           </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all relative overflow-hidden group`}>
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+              <ShieldCheck size={24} />
+            </div>
+          </div>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Rewards Balance</p>
+          <div className="flex items-end justify-between">
+            <p className="text-2xl font-black italic tracking-tighter text-indigo-500 uppercase">{user.rewardPoints || 0} PTS</p>
+            {user.rewardPoints >= 1000 && (
+              <button 
+                onClick={handleClaimReward}
+                className="text-[10px] font-black bg-indigo-500 text-white px-3 py-1.5 rounded-lg uppercase tracking-widest hover:bg-indigo-600 transition-all"
+              >
+                Claim
+              </button>
+            )}
+          </div>
+          <div className="absolute -bottom-4 -right-4 w-20 h-20 bg-indigo-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+        </div>
         <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all`}>
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">

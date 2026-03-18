@@ -22,8 +22,10 @@ async def add_money(
     payment_method: str = Form(...),
     transaction_id: str = Form(...),
     worker_email: str = Form(...),
-    screenshot: Optional[UploadFile] = File(None)
+    screenshot: UploadFile = File(...) # Made mandatory
 ):
+    if not screenshot:
+        raise HTTPException(status_code=400, detail="Proof of payment image is required (proofImage)")
     # Fraud prevention: check for duplicate transaction ID
     if payments_collection.find_one({"transaction_id": transaction_id}):
         raise HTTPException(status_code=400, detail="Transaction ID already exists.")
@@ -56,14 +58,14 @@ async def add_money(
 
 @router.get("/balance/{email}")
 async def get_balance(email: str):
-    user = users_collection.find_one({"email": email})
+    user = users_collection.find_one({"email": email.lower()})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"wallet_balance": user.get("wallet_balance", 0)}
 
 @router.get("/transactions/{email}")
 async def get_transactions(email: str):
-    user = users_collection.find_one({"email": email})
+    user = users_collection.find_one({"email": email.lower()})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     

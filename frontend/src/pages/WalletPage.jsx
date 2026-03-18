@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Plus, History, ArrowUpRight, ArrowDownLeft, Landmark, QrCode, CheckCircle2 } from 'lucide-react';
+import { Wallet, Plus, History, ArrowUpRight, ArrowDownLeft, Landmark, QrCode, CheckCircle2, Download, FileText, Send, Users } from 'lucide-react';
 
 const WalletPage = () => {
   const [user, setUser] = useState(null);
@@ -15,9 +15,32 @@ const WalletPage = () => {
   useEffect(() => {
     const userStr = localStorage.getItem('shieldgig_user');
     if (userStr) {
-      const u = JSON.parse(userStr);
-      setUser(u);
-      fetchData(u.email);
+      try {
+        const u = JSON.parse(userStr);
+        setUser(u);
+        const userId = u.id || u._id;
+        if (userId) {
+          // Sync fresh profile (points, code, wallet_balance)
+          fetch(`http://localhost:8000/user/profile/${userId}`)
+            .then(res => res.json())
+            .then(freshUser => {
+              if (freshUser && !freshUser.detail) {
+                setUser(freshUser);
+                localStorage.setItem('shieldgig_user', JSON.stringify(freshUser));
+                fetchData(freshUser.email);
+              } else {
+                fetchData(u.email);
+              }
+            }).catch(() => fetchData(u.email));
+        } else {
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Error parsing user from localStorage", e);
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -33,19 +56,77 @@ const WalletPage = () => {
   }, [showAddMoney]);
 
   const fetchData = async (email) => {
+    if (!email) {
+      setLoading(false);
+      return;
+    }
     try {
       const [balRes, txRes] = await Promise.all([
-        fetch(`http://localhost:8000/wallet/balance/${email}`),
-        fetch(`http://localhost:8000/wallet/transactions/${email}`)
+        fetch(`http://localhost:8000/wallet/balance/${encodeURIComponent(email)}`),
+        fetch(`http://localhost:8000/wallet/transactions/${encodeURIComponent(email)}`)
       ]);
+      
+      if (!balRes.ok || !txRes.ok) {
+        console.warn("Server returned error response for wallet data");
+        setLoading(false);
+        return;
+      }
+
       const balData = await balRes.json();
       const txData = await txRes.json();
       setBalance(balData.wallet_balance || 0);
       setTransactions(txData || []);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching wallet data:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadCSV = () => {
+    const headers = ["Date", "Description", "Amount", "Status"];
+    const rows = transactions.map(t => [
+      new Date(t.created_at).toLocaleDateString(),
+      t.description || (t.type === 'deposit' ? 'Protocol Reserve Deposit' : 'Policy Payment'),
+      t.amount,
+      t.status || 'CLEARED'
+    ]);
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ShieldGig_Wallet_Audit_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  const downloadPDF = () => {
+    window.print();
+  };
+
+  const handleExchangePoints = async () => {
+    if (user.rewardPoints < 1000) return;
+    try {
+      setSubmitting(true);
+      const res = await fetch('http://localhost:8000/user/claim-reward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id || user._id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        // Update user state for points
+        const updatedUser = { ...user, rewardPoints: user.rewardPoints - 1000 };
+        setUser(updatedUser);
+        localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
+      } else {
+        alert(data.detail || "Exchange failed");
+      }
+    } catch (err) {
+      alert("Error connecting to server");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -58,9 +139,12 @@ const WalletPage = () => {
       body.append('payment_method', formData.method);
       body.append('transaction_id', formData.txId);
       body.append('worker_email', user.email);
-      if (formData.screenshot) {
-        body.append('screenshot', formData.screenshot);
+      if (!formData.screenshot) {
+        alert("Please upload a proof screenshot.");
+        setSubmitting(false);
+        return;
       }
+      body.append('screenshot', formData.screenshot);
 
       const res = await fetch('http://localhost:8000/wallet/add-money', {
         method: 'POST',
@@ -86,6 +170,12 @@ const WalletPage = () => {
   };
 
   if (loading) return <div className="p-12 text-center animate-pulse">Scanning Wallet Registry...</div>;
+  if (!user) return (
+    <div className="p-12 text-center space-y-4">
+      <h2 className="text-2xl font-bold dark:text-white">Session Missing</h2>
+      <p className="text-slate-500">Please log in to manage your vault.</p>
+    </div>
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -135,19 +225,45 @@ const WalletPage = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
               <h4 className="font-bold mb-3 flex items-center gap-2 text-sm uppercase tracking-wide text-slate-500"><Landmark size={16}/> Instant Verify Details</h4>
               <div className="space-y-3">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                  <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">UPI ID</p>
-                  <p className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200 flex justify-between">
-                    shieldgig@upi
-                    <button className="text-indigo-500 hover:underline">Copy</button>
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                  <p className="text-[10px] uppercase text-slate-400 font-bold mb-1">Bank Account</p>
-                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">ShieldGig Insurance</p>
-                  <p className="text-xs font-mono text-slate-500">A/C: XXXX1234 • IFSC: HDFC0001234</p>
-                </div>
               </div>
+            </div>
+
+            {/* Refer & Rewards */}
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden group">
+              <div className="absolute right-0 top-0 opacity-10 group-hover:scale-110 transition-transform">
+                <Users size={80} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Refer a Friend</p>
+              <h4 className="text-lg font-black italic tracking-tighter uppercase mb-3 leading-tight">Earn ₹100 Bonus<br/>Per Signup</h4>
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex justify-between items-center border border-white/20">
+                <span className="font-mono font-bold">{user?.referralCode}</span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(user?.referralCode);
+                    alert("Referral code copied!");
+                  }}
+                  className="text-[10px] font-black uppercase bg-white text-indigo-600 px-3 py-1.5 rounded-lg active:scale-90 transition-transform"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 flex items-center gap-2">
+                   <QrCode size={16}/> Reward Hub
+                </h4>
+                <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">{user?.rewardPoints} PTS</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mb-5 font-medium italic leading-relaxed">Exchange 1000 points for ₹10 cash. Note: Admin approval required for final payout.</p>
+              <button 
+                onClick={handleExchangePoints}
+                disabled={(user?.rewardPoints || 0) < 1000 || submitting}
+                className="w-full py-4 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-2xl font-black uppercase italic tracking-tighter text-xs disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/10"
+              >
+                <Send size={14} /> {submitting ? 'Processing...' : 'Redeem 1000 Points'}
+              </button>
             </div>
           </div>
         </div>
@@ -157,11 +273,19 @@ const WalletPage = () => {
           <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm flex flex-col h-full">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-[#0B0F19]">
               <h3 className="font-bold flex items-center gap-2 italic uppercase tracking-tighter text-slate-500"><History size={20} className="text-emerald-500"/> Audit Log</h3>
-              <select className="bg-transparent text-xs font-bold text-slate-500 outline-none">
-                <option>All Activities</option>
-                <option>Credits</option>
-                <option>Debits</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <button onClick={downloadCSV} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-all active:scale-95" title="Download CSV">
+                  <Download size={18} />
+                </button>
+                <button onClick={downloadPDF} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-all active:scale-95" title="Download PDF">
+                  <FileText size={18} />
+                </button>
+                <select className="bg-transparent text-xs font-bold text-slate-500 outline-none ml-2">
+                  <option>All Activities</option>
+                  <option>Credits</option>
+                  <option>Debits</option>
+                </select>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto max-h-[600px]">
@@ -270,10 +394,10 @@ const WalletPage = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Proof Screenshot (Optional)</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Proof Screenshot (Required)</label>
                     <div className="relative">
                       <input 
-                        type="file" accept="image/*"
+                        type="file" accept="image/*" required
                         onChange={e => setFormData({...formData, screenshot: e.target.files[0]})}
                         className="w-full text-xs text-slate-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-all cursor-pointer bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-2"
                       />

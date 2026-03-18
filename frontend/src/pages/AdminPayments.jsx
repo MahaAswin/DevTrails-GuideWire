@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, CheckCircle, XCircle, User, Clock, Search, Filter, IndianRupee } from 'lucide-react';
+import { CreditCard, CheckCircle, XCircle, User, Clock, Search, Filter, IndianRupee, Download, FileText } from 'lucide-react';
 
 const AdminPayments = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchPayments();
@@ -39,10 +41,44 @@ const AdminPayments = () => {
     }
   };
 
-  const filtered = payments.filter(p => 
-    p.worker_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.transaction_id?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = payments.filter(p => {
+    const matchesSearch = p.worker_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.transaction_id?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const pDate = new Date(p.created_at);
+    const matchesStart = startDate ? pDate >= new Date(startDate) : true;
+    const matchesEnd = endDate ? pDate <= new Date(endDate + 'T23:59:59') : true;
+
+    return matchesSearch && matchesStart && matchesEnd;
+  });
+
+  const downloadCSV = () => {
+    const headers = ["Worker Name", "User ID", "Amount", "Method", "Transaction ID", "Time", "Status"];
+    const rows = filtered.map(p => [
+      p.worker_name,
+      p.user_id,
+      p.amount,
+      p.payment_method,
+      `"${p.transaction_id}"`, // Use quotes to preserve TxID format
+      new Date(p.created_at).toLocaleString().replace(',', ''), // Remove comma for CSV
+      p.status || 'Pending'
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `shieldgig_payments_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadPDF = () => {
+    window.print();
+  };
 
   if (loading) return <div className="p-12 text-center animate-pulse">Scanning Payment Ledger...</div>;
 
@@ -54,8 +90,37 @@ const AdminPayments = () => {
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-2">Verify manual deposits to release protocol reserves.</p>
         </div>
         
-        <div className="flex gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
+          <div className="flex items-center gap-2 bg-white dark:bg-[#111827] border-2 border-slate-100 dark:border-slate-800 rounded-xl px-3 py-1.5 no-print">
+            <span className="text-[9px] font-black uppercase text-slate-400">From</span>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-xs font-bold outline-none"
+            />
+            <span className="text-[9px] font-black uppercase text-slate-400">To</span>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent text-xs font-bold outline-none"
+            />
+          </div>
+          
+          <button 
+            onClick={downloadCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border border-emerald-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest no-print"
+          >
+            <Download size={14} /> CSV
+          </button>
+          <button 
+            onClick={downloadPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white border border-indigo-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest no-print"
+          >
+            <FileText size={14} /> PDF
+          </button>
+          <div className="relative flex-1 md:w-64 no-print">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -65,11 +130,20 @@ const AdminPayments = () => {
               className="w-full pl-9 pr-4 py-3 bg-white dark:bg-[#111827] border-2 border-slate-100 dark:border-slate-800 rounded-xl focus:border-emerald-500 outline-none text-sm transition-all font-bold"
             />
           </div>
-          <button className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <Filter size={18} className="text-slate-600 dark:text-slate-300" />
-          </button>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; color: black !important; }
+          .bg-white, .dark\\:bg-\\[\\#111827\\], .bg-slate-50 { background: white !important; color: black !important; border: 1px solid #eee !important; }
+          table { width: 100% !important; border-collapse: collapse !important; }
+          th, td { border: 1px solid #ddd !important; padding: 12px !important; color: black !important; }
+          .rounded-\\[2rem\\], .rounded-3xl, .rounded-xl { border-radius: 0 !important; }
+          .shadow-sm, .shadow-lg, .shadow-xl { shadow: none !important; }
+        }
+      `}} />
 
       <div className="bg-white dark:bg-[#111827] rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
         <div className="overflow-x-auto">

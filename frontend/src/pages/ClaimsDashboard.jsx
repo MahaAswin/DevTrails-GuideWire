@@ -4,25 +4,23 @@ import { CheckCircle2, Clock, XCircle, ArrowRight } from 'lucide-react';
 const ClaimsDashboard = () => {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState({ role: 'worker', id: '' });
+  const [user, setUser] = useState({ role: 'worker', id: '', city: 'Unknown' });
+  const [safetyStatus, setSafetyStatus] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('shieldgig_user');
-    let currentUser = { role: 'worker', id: '' };
+    let currentUser = { role: 'worker', id: '', city: 'Unknown' };
     if (userStr) {
       currentUser = JSON.parse(userStr);
       setUser(currentUser);
     }
 
+    // Fetch Claims
     fetch('http://localhost:8000/admin/claims')
       .then(res => res.json())
       .then(data => {
-        // Filter claims if the user is a worker
         if (currentUser.role === 'worker') {
-          // As a worker, we only want to show their claims based on worker_id 
-          // (assuming claims have worker_id tied to user.id). Currently, claims 
-          // from reports collection logic might differ but we will show claims assigned to them
-          // Here we mock filter based on name match for prototyping if id is missing
           setClaims(data.filter(c => c.worker_id === currentUser.id || c.worker === currentUser.name));
         } else {
           setClaims(data);
@@ -33,7 +31,33 @@ const ClaimsDashboard = () => {
         console.error(err);
         setLoading(false);
       });
+
+    // Fetch Safety Status for Worker
+    if (currentUser.role === 'worker' && currentUser.city) {
+      fetch(`http://localhost:8000/weather/current?city=${currentUser.city}`)
+        .then(res => res.json())
+        .then(data => setSafetyStatus(data))
+        .catch(err => console.error("Safety check failed", err));
+    }
   }, []);
+
+  const checkEligibility = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch(`http://localhost:8000/weather/current?city=${user.city}`);
+      const data = await res.json();
+      setSafetyStatus(data);
+      if (data.eligible_for_claim) {
+        alert(`💰 GOOD NEWS! Condition met: ${data.weather} (${data.rain_level}mm). A parametric claim is being registered.`);
+      } else {
+        alert(`ℹ️ Not eligible yet. Current Rain: ${data.rain_level}mm (Threshold: >3mm). Risk Score: ${data.risk_score}/100.`);
+      }
+    } catch (err) {
+      alert("Eligibility check failed. Service offline.");
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const getStatusBadge = (status) => {
     const s = (status || 'Processing').toLowerCase();
@@ -62,11 +86,26 @@ const ClaimsDashboard = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-end border-b border-slate-200 dark:border-slate-800 pb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
         <div>
           <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-white uppercase leading-none">Claims<br/>Ledger</h2>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-2">Monitor and manage automatically triggered parametric claims.</p>
         </div>
+        {user.role === 'worker' && safetyStatus && (
+          <div className={`p-4 rounded-2xl border-2 flex items-center gap-4 animate-in zoom-in-95 duration-500 ${safetyStatus.safety_status === 'SAFE' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Live Safety Monitor ({user.city})</p>
+              <p className="font-black italic text-sm uppercase tracking-tighter">{safetyStatus.safety_status}: RISK {safetyStatus.risk_score}/100</p>
+            </div>
+            <button 
+              disabled={checking}
+              onClick={checkEligibility}
+              className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${safetyStatus.safety_status === 'SAFE' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
+            >
+              {checking ? 'Analyzing...' : 'Refresh Status'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 uppercase tracking-widest text-[10px] font-black">

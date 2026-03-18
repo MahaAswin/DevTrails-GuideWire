@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, XCircle, Eye, ExternalLink, User, Clock, AlertTriangle, IndianRupee, FileText, CheckCircle, MapPin, Activity } from 'lucide-react';
+import { ShieldCheck, XCircle, Eye, ExternalLink, User, Clock, AlertTriangle, AlertCircle, IndianRupee, FileText, CheckCircle, MapPin, Activity } from 'lucide-react';
 
 const AdminClaimsCenter = () => {
   const [claims, setClaims] = useState([]);

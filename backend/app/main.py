@@ -67,10 +67,11 @@ app.add_middleware(
 )
 
 # Include routers here
-from app.routes import workers, policies, claims, risk, analytics, auth, admin, reports, wallet, claim_reports, weather
+from app.routes import workers, policies, claims, risk, analytics, auth, admin, reports, wallet, claim_reports, weather, user
 from fastapi.staticfiles import StaticFiles
 import os
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+app.include_router(user.router, prefix="/user", tags=["User Settings"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin Dashboard"])
 app.include_router(reports.router, prefix="/report", tags=["Reports"])
 app.include_router(workers.router, prefix="/workers", tags=["Workers"])
