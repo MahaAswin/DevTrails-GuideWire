@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Clock, XCircle, ArrowRight } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const ClaimsDashboard = () => {
   const [claims, setClaims] = useState([]);
@@ -17,7 +18,7 @@ const ClaimsDashboard = () => {
     }
 
     // Fetch Claims
-    fetch('http://localhost:8000/admin/claims')
+    fetch(`${BASE_URL}/admin/claims`)
       .then(res => res.json())
       .then(data => {
         if (currentUser.role === 'worker') {
@@ -34,7 +35,7 @@ const ClaimsDashboard = () => {
 
     // Fetch Safety Status for Worker
     if (currentUser.role === 'worker' && currentUser.city) {
-      fetch(`http://localhost:8000/weather/current?city=${currentUser.city}`)
+      fetch(`${BASE_URL}/weather/current?city=${currentUser.city}`)
         .then(res => res.json())
         .then(data => setSafetyStatus(data))
         .catch(err => console.error("Safety check failed", err));
@@ -44,7 +45,7 @@ const ClaimsDashboard = () => {
   const checkEligibility = async () => {
     setChecking(true);
     try {
-      const res = await fetch(`http://localhost:8000/weather/current?city=${user.city}`);
+      const res = await fetch(`${BASE_URL}/weather/current?city=${user.city}`);
       const data = await res.json();
       setSafetyStatus(data);
       if (data.eligible_for_claim) {

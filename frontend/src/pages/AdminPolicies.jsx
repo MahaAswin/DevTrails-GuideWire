@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Edit, Trash2, Shield, UserPlus } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const AdminPolicies = () => {
   const [policies, setPolicies] = useState([]);
@@ -14,7 +15,7 @@ const AdminPolicies = () => {
 
   const fetchPolicies = async () => {
     try {
-      const res = await fetch('http://localhost:8000/admin/policies');
+      const res = await fetch(`${BASE_URL}/admin/policies`);
       if (res.ok) setPolicies(await res.json());
     } catch (err) {
       console.error(err);
@@ -30,7 +31,7 @@ const AdminPolicies = () => {
   const handleCreatePolicy = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:8000/admin/add-policy', {
+      const res = await fetch(`${BASE_URL}/admin/add-policy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

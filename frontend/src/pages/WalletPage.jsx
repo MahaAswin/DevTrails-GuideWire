@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, History, ArrowUpRight, ArrowDownLeft, Landmark, QrCode, CheckCircle2, Download, FileText, Send, Users } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const WalletPage = () => {
   const [user, setUser] = useState(null);
@@ -21,7 +22,7 @@ const WalletPage = () => {
         const userId = u.id || u._id;
         if (userId) {
           // Sync fresh profile (points, code, wallet_balance)
-          fetch(`http://localhost:8000/user/profile/${userId}`)
+          fetch(`${BASE_URL}/user/profile/${userId}`)
             .then(res => res.json())
             .then(freshUser => {
               if (freshUser && !freshUser.detail) {
@@ -62,8 +63,8 @@ const WalletPage = () => {
     }
     try {
       const [balRes, txRes] = await Promise.all([
-        fetch(`http://localhost:8000/wallet/balance/${encodeURIComponent(email)}`),
-        fetch(`http://localhost:8000/wallet/transactions/${encodeURIComponent(email)}`)
+        fetch(`${BASE_URL}/wallet/balance/${encodeURIComponent(email)}`),
+        fetch(`${BASE_URL}/wallet/transactions/${encodeURIComponent(email)}`)
       ]);
       
       if (!balRes.ok || !txRes.ok) {
@@ -108,7 +109,7 @@ const WalletPage = () => {
     if (user.referral_points < 1000) return;
     try {
       setSubmitting(true);
-      const res = await fetch('http://localhost:8000/wallet/convert-points', {
+      const res = await fetch(`${BASE_URL}/wallet/convert-points`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id || user._id })
@@ -150,7 +151,7 @@ const WalletPage = () => {
       }
       body.append('screenshot', formData.screenshot);
 
-      const res = await fetch('http://localhost:8000/wallet/add-money', {
+      const res = await fetch(`${BASE_URL}/wallet/add-money`, {
         method: 'POST',
         body: body
       });

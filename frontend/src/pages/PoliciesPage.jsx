@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CloudRain, Car, Factory, ShieldBan, Zap, ShieldAlert } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const ICONS = { CloudRain, Car, Factory, ShieldBan };
 
@@ -14,7 +15,7 @@ const PoliciesPage = () => {
     const userStr = localStorage.getItem('shieldgig_user');
     if (userStr) setUser(JSON.parse(userStr));
 
-    fetch('http://localhost:8000/policies')
+    fetch(`${BASE_URL}/policies`)
       .then(res => res.json())
       .then(data => {
         setPolicies(data);
@@ -29,7 +30,7 @@ const PoliciesPage = () => {
   const handleActivate = async (policyId) => {
     setActivating(policyId);
     try {
-      const res = await fetch('http://localhost:8000/workers/activate-policy', {
+      const res = await fetch(`${BASE_URL}/workers/activate-policy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ worker_email: user.email, policy_id: policyId })

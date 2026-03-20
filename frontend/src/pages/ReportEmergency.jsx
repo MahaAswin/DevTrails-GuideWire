@@ -3,6 +3,7 @@ import { AlertTriangle, MapPin, Send, CheckCircle2, Upload, FileText, File, Imag
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { BASE_URL } from "../api/config";
 
 // Fix for leaflet default icon issue in React
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -94,7 +95,7 @@ const ReportEmergency = () => {
     });
 
     try {
-      const res = await fetch('http://localhost:8000/claims-evidence/submit', {
+      const res = await fetch(`${BASE_URL}/claims-evidence/submit`, {
         method: 'POST',
         body: data
       });

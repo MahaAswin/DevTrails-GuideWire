@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Bot, User, Loader2 } from 'lucide-react';
 
-const BACKEND_URL = 'http://localhost:8000';
+import { BASE_URL } from "../../api/config";
+
+const BACKEND_URL = BASE_URL;
 
 const ChatAssistantButton = () => {
   const [isOpen, setIsOpen] = useState(false);

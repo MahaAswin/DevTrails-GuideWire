@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Shield } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ const Login = () => {
     setError(null);
 
     try {
-      const res = await fetch('http://localhost:8000/auth/login', {
+      const res = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -118,7 +119,7 @@ const Login = () => {
 
         <div className="mt-8 grid grid-cols-2 gap-4">
           <button 
-            onClick={() => window.location.href = 'http://localhost:8000/auth/google/login'}
+            onClick={() => window.location.href = `${BASE_URL}/auth/google/login`}
             className="flex items-center justify-center gap-3 py-4 border-2 border-slate-100 dark:border-slate-800 hover:border-[#FF6B00]/40 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-all group relative overflow-hidden"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -130,7 +131,7 @@ const Login = () => {
             <span className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 group-hover:text-[#FF6B00] transition-colors">Google</span>
           </button>
           <button 
-            onClick={() => window.location.href = 'http://localhost:8000/auth/github/login'}
+            onClick={() => window.location.href = `${BASE_URL}/auth/github/login`}
             className="flex items-center justify-center gap-3 py-4 border-2 border-slate-100 dark:border-slate-800 hover:border-[#FF6B00]/40 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-all group relative overflow-hidden"
           >
             <svg className="w-5 h-5 dark:invert" viewBox="0 0 24 24" fill="currentColor">

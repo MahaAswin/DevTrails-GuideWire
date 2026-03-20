@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Receipt, Wallet, Activity, ExternalLink, CloudRain, Car, Factory, ShieldAlert } from 'lucide-react';
 import WeatherCard from '../components/WeatherCard';
+import { BASE_URL } from "../api/config";
 
 const ICONS = { CloudRain, Car, Factory, ShieldAlert };
 
@@ -20,9 +21,9 @@ const WorkerDashboard = () => {
       
       // Fetch policies, balance, and my evidence-claims
       Promise.all([
-        fetch(`http://localhost:8000/policies/${parsed.platform}`),
-        fetch(`http://localhost:8000/wallet/balance/${parsed.email}`),
-        fetch(`http://localhost:8000/claims-evidence/my-claims/${parsed.email}`)
+        fetch(`${BASE_URL}/policies/${parsed.platform}`),
+        fetch(`${BASE_URL}/wallet/balance/${parsed.email}`),
+        fetch(`${BASE_URL}/claims-evidence/my-claims/${parsed.email}`)
       ])
         .then(async ([polRes, balRes, claimRes]) => {
           const polData = await polRes.json();
@@ -45,7 +46,7 @@ const WorkerDashboard = () => {
   const handleActivate = async (policyId) => {
     setActivating(policyId);
     try {
-      const res = await fetch('http://localhost:8000/workers/activate-policy', {
+      const res = await fetch(`${BASE_URL}/workers/activate-policy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ worker_email: user.email, policy_id: policyId })
@@ -67,7 +68,7 @@ const WorkerDashboard = () => {
   const handleToggleReminder = async () => {
     try {
       const newStatus = !user.reminderEnabled;
-      const res = await fetch('http://localhost:8000/user/reminder-toggle', {
+      const res = await fetch(`${BASE_URL}/user/reminder-toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id, enabled: newStatus })
@@ -85,7 +86,7 @@ const WorkerDashboard = () => {
   const handleClaimReward = async () => {
     if (user.referral_points < 1000) return;
     try {
-      const res = await fetch('http://localhost:8000/wallet/convert-points', {
+      const res = await fetch(`${BASE_URL}/wallet/convert-points`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id })

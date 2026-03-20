@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ShieldCheck, ShieldAlert, ShieldX, MapPin, Search, Filter } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const WorkerCard = ({ name, id, city, risk, premium, active }) => {
   const getRiskColor = (risk) => {
@@ -67,7 +68,7 @@ const WorkersView = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:8000/admin/users')
+    fetch(`${BASE_URL}/admin/users`)
       .then(res => res.json())
       .then(data => {
         // Filter only workers and possibly by platform if specified

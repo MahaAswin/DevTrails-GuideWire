@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle, XCircle, User, Clock, Search, Filter, IndianRupee, Download, FileText } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const AdminPayments = () => {
   const [payments, setPayments] = useState([]);
@@ -14,7 +15,7 @@ const AdminPayments = () => {
 
   const fetchPayments = async () => {
     try {
-      const res = await fetch('http://localhost:8000/admin/pending-payments');
+      const res = await fetch(`${BASE_URL}/admin/pending-payments`);
       const data = await res.json();
       setPayments(data || []);
     } catch (err) {
@@ -26,7 +27,7 @@ const AdminPayments = () => {
 
   const handleVerify = async (paymentId, status) => {
     try {
-      const res = await fetch('http://localhost:8000/admin/approve-payment', {
+      const res = await fetch(`${BASE_URL}/admin/approve-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payment_id: paymentId, status })
@@ -190,12 +191,12 @@ const AdminPayments = () => {
                     <td className="px-6 py-5">
                       {payment.screenshot_url ? (
                         <a 
-                          href={`http://localhost:8000/uploads/${payment.screenshot_url}`} 
+                          href={`${BASE_URL}/uploads/${payment.screenshot_url}`} 
                           target="_blank" rel="noreferrer"
                           className="block w-12 h-12 rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-500 transition-all shadow-sm shadow-black/20"
                         >
                           <img 
-                            src={`http://localhost:8000/uploads/${payment.screenshot_url}`} 
+                            src={`${BASE_URL}/uploads/${payment.screenshot_url}`} 
                             alt="Proof" 
                             className="w-full h-full object-cover"
                           />

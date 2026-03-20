@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, FileText, Activity, ShieldAlert, LogOut } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const AdminDashboard = () => {
   const [data, setData] = useState({ users: [], policies: [], claims: [], reports: [], rewardPayouts: [] });
@@ -10,11 +11,11 @@ const AdminDashboard = () => {
     const fetchData = async () => {
       try {
         const [usersRes, policiesRes, claimsRes, reportsRes, rewardsRes] = await Promise.all([
-          fetch('http://localhost:8000/admin/users'),
-          fetch('http://localhost:8000/admin/policies'),
-          fetch('http://localhost:8000/admin/claims'),
-          fetch('http://localhost:8000/admin/pending-claims'),
-          fetch('http://localhost:8000/admin/reward-payouts/pending')
+          fetch(`${BASE_URL}/admin/users`),
+          fetch(`${BASE_URL}/admin/policies`),
+          fetch(`${BASE_URL}/admin/claims`),
+          fetch(`${BASE_URL}/admin/pending-claims`),
+          fetch(`${BASE_URL}/admin/reward-payouts/pending`)
         ]);
         
         const users = await usersRes.json();
@@ -38,7 +39,7 @@ const AdminDashboard = () => {
     if (!amount) return;
 
     try {
-      const res = await fetch('http://localhost:8000/admin/resolve-report', {
+      const res = await fetch(`${BASE_URL}/admin/resolve-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ report_id: reportId, payout_amount: parseFloat(amount) })
@@ -46,7 +47,7 @@ const AdminDashboard = () => {
       if (res.ok) {
         alert("Report resolved and payout sent to worker wallet.");
         // Refresh data
-        const reportsRes = await fetch('http://localhost:8000/admin/reports');
+        const reportsRes = await fetch(`${BASE_URL}/admin/reports`);
         const reports = await reportsRes.json();
         setData(prev => ({ ...prev, reports }));
       } else {
@@ -59,7 +60,7 @@ const AdminDashboard = () => {
 
   const handleProcessRewardPayout = async (payoutId, status) => {
     try {
-      const res = await fetch('http://localhost:8000/admin/process-reward-payout', {
+      const res = await fetch(`${BASE_URL}/admin/process-reward-payout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payout_id: payoutId, status: status })
@@ -67,7 +68,7 @@ const AdminDashboard = () => {
       if (res.ok) {
         alert(`Payout ${status === 'approved' ? 'approved' : 'rejected'}.`);
         // Refresh rewards list
-        const rewardsRes = await fetch('http://localhost:8000/admin/reward-payouts/pending');
+        const rewardsRes = await fetch(`${BASE_URL}/admin/reward-payouts/pending`);
         const rewardPayouts = await rewardsRes.json();
         setData(prev => ({ ...prev, rewardPayouts }));
       } else {

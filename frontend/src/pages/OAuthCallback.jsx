@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Shield, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 /**
  * OAuthCallback – receives the JWT token from the backend redirect
@@ -46,7 +47,7 @@ const OAuthCallback = () => {
 
       try {
         // Fetch user profile using the JWT
-        const res = await fetch('http://localhost:8000/auth/me', {
+        const res = await fetch(`${BASE_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

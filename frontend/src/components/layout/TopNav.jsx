@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, Moon, Sun, Shield, User, LogOut, Settings, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { BASE_URL } from "../../api/config";
 
 const TopNav = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -38,7 +39,7 @@ const TopNav = () => {
     if (!userId || syncing) return;
     setSyncing(true);
     try {
-      const res = await fetch(`http://localhost:8000/user/profile/${userId}`);
+      const res = await fetch(`${BASE_URL}/user/profile/${userId}`);
       if (res.ok) {
         const freshUser = await res.json();
         setUser(freshUser);
@@ -53,7 +54,7 @@ const TopNav = () => {
 
   const handleUpdatePhone = async () => {
     try {
-      const res = await fetch('http://localhost:8000/user/update-profile', {
+      const res = await fetch(`${BASE_URL}/user/update-profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id || user._id, phone: tempPhone })
@@ -72,7 +73,7 @@ const TopNav = () => {
   const handleToggleReminder = async () => {
     try {
       const newStatus = !user.reminderEnabled;
-      const res = await fetch('http://localhost:8000/user/reminder-toggle', {
+      const res = await fetch(`${BASE_URL}/user/reminder-toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id || user._id, enabled: newStatus })

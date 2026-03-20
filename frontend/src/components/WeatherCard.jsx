@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CloudRain, Sun, Cloud, AlertTriangle, CheckCircle, Wallet, MapPin } from 'lucide-react';
 import LocationPickerModal from './LocationPickerModal';
+import { BASE_URL } from "../api/config";
 
 const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
   const [weatherData, setWeatherData] = useState(null);
@@ -13,7 +14,7 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
     try {
       setLoading(true);
       const cityName = typeof targetCity === 'object' ? (targetCity.name || targetCity.city || "Unknown") : (targetCity || "Unknown");
-      const res = await fetch(`http://localhost:8000/weather/current?city=${encodeURIComponent(cityName)}`);
+      const res = await fetch(`${BASE_URL}/weather/current?city=${encodeURIComponent(cityName)}`);
       if (!res.ok) throw new Error("Failed to fetch weather");
       const data = await res.json();
       setWeatherData(data);
@@ -38,7 +39,7 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
   const handleClaim = async () => {
     setClaiming(true);
     try {
-      const res = await fetch('http://localhost:8000/weather/weather-claim', {
+      const res = await fetch(`${BASE_URL}/weather/weather-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, city: city })
@@ -61,7 +62,7 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
 
   const handleSelectCity = async (newCity) => {
     try {
-      const res = await fetch('http://localhost:8000/workers/update-city', {
+      const res = await fetch(`${BASE_URL}/workers/update-city`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ worker_email: userEmail, new_city: newCity })

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, XCircle, Eye, ExternalLink, User, Clock, AlertTriangle, AlertCircle, IndianRupee, FileText, CheckCircle, MapPin, Activity } from 'lucide-react';
+import { BASE_URL } from "../api/config";
 
 const AdminClaimsCenter = () => {
   const [claims, setClaims] = useState([]);
@@ -14,7 +15,7 @@ const AdminClaimsCenter = () => {
   const fetchClaims = async () => {
     try {
       // Fetches from the unified claim_reports collection
-      const res = await fetch('http://localhost:8000/admin/pending-claims');
+      const res = await fetch(`${BASE_URL}/admin/pending-claims`);
       const data = await res.json();
       setClaims(data || []);
     } catch (err) {
@@ -31,7 +32,7 @@ const AdminClaimsCenter = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:8000/admin/verify-claim', {
+      const res = await fetch(`${BASE_URL}/admin/verify-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -174,7 +175,7 @@ const AdminClaimsCenter = () => {
                     {selectedClaim.proof_images.map((img, i) => (
                       <a 
                         key={i} 
-                        href={`http://localhost:8000/uploads/${img}`} 
+                        href={`${BASE_URL}/uploads/${img}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-indigo-500 transition-all relative group shadow-sm"
@@ -186,7 +187,7 @@ const AdminClaimsCenter = () => {
                            </div>
                         ) : (
                           <img 
-                            src={`http://localhost:8000/uploads/${img}`} 
+                            src={`${BASE_URL}/uploads/${img}`} 
                             alt="proof" 
                             className="w-full h-full object-cover transition-transform group-hover:scale-110"
                           />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowUpRight, Users, ShieldAlert, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { BASE_URL } from "../api/config";
 
 const PlatformCard = ({ name, color, data }) => {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ const Dashboard = () => {
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
-    fetch('http://localhost:8000/analytics/dashboard')
+    fetch(`${BASE_URL}/analytics/dashboard`)
       .then(res => {
         if (!res.ok) throw new Error('Backend not available');
         return res.json();
