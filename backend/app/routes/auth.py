@@ -53,15 +53,54 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
 
 security = HTTPBearer()
 
+import hashlib
+import bcrypt
+from passlib.context import CryptContext
+
+# Maintain pwd_context for potential other uses or legacy checks if needed, 
+# but we will use direct bcrypt for primary hashing/verification to fix compatibility issues.
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash password with SHA-256 before bcrypt to bypass 72-byte limit."""
+    pre_hash = hashlib.sha256(password.encode()).hexdigest()
+    # bcrypt expects bytes for both password and salt
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pre_hash.encode(), salt)
+    return hashed.decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify password with dual strategy for backward compatibility."""
+    try:
+        # Binary versions needed for bcrypt
+        p_bytes = plain_password.encode()
+        h_bytes = hashed_password.encode()
+
+        # 1. Try with SHA-256 pre-hash (New logic)
+        pre_hash = hashlib.sha256(p_bytes).hexdigest().encode()
+        if bcrypt.checkpw(pre_hash, h_bytes):
+            return True
+
+        # 2. Try WITHOUT pre-hash (Old logic for existing users)
+        if bcrypt.checkpw(p_bytes, h_bytes):
+            return True
+            
+    except Exception as e:
+        # Fallback to passlib if direct bcrypt fails (e.g. for legacy identifying prefixes)
+        try:
+            # Try new logic with passlib
+            pre_hash_str = hashlib.sha256(plain_password.encode()).hexdigest()
+            if pwd_context.verify(pre_hash_str, hashed_password):
+                return True
+            # Try old logic with passlib
+            if pwd_context.verify(plain_password, hashed_password):
+                return True
+        except:
+            pass
+            
+    return False
 
 
 def create_access_token(data: dict) -> str:
@@ -76,6 +115,9 @@ def generate_referral_code(length: int = 8) -> str:
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
+    if len(user.password) > 128:
+        raise HTTPException(status_code=400, detail="Password too long (max 128 characters)")
+    
     try:
         if users_collection.find_one({"email": user.email}):
             raise HTTPException(status_code=400, detail="Email already registered")
