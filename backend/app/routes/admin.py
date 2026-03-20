@@ -132,7 +132,7 @@ async def verify_claim(body: VerifyClaimBody, background_tasks: BackgroundTasks)
         })
 
         if user:
-            background_tasks.add_task(send_email, "Claim Approved ✅", user["email"], f"Your claim for {claim.get('type')} has been approved. ₹{payout_amt} credited to your wallet.")
+            background_tasks.add_task(send_email, "Claim Approved", user["email"], f"Your claim for {claim.get('type')} has been approved. ₹{payout_amt} credited to your wallet.")
         
         log_event(f"Claim approved: {body.claim_id} for user {user_id}")
         return {"message": "Claim approved and paid out."}
@@ -140,7 +140,7 @@ async def verify_claim(body: VerifyClaimBody, background_tasks: BackgroundTasks)
     if body.status == "rejected":
         claims_collection.update_one({"_id": claim_oid}, {"$set": {"status": "rejected", "verified_at": datetime.utcnow()}})
         if user:
-            background_tasks.add_task(send_email, "Claim Rejected ❌", user["email"], f"Your claim for {claim.get('type')} has been rejected.")
+            background_tasks.add_task(send_email, "Claim Rejected", user["email"], f"Your claim for {claim.get('type')} has been rejected.")
         return {"message": "Claim rejected."}
 
     raise HTTPException(status_code=400, detail="status must be approved or rejected")
@@ -227,7 +227,7 @@ async def approve_payment(body: ApprovePaymentBody, background_tasks: Background
         })
 
         if user:
-            background_tasks.add_task(send_email, "Payment Approved ✅", user["email"], f"Your deposit of ₹{amount} has been approved and credited to your wallet.")
+            background_tasks.add_task(send_email, "Payment Approved", user["email"], f"Your deposit of ₹{amount} has been approved and credited to your wallet.")
 
         log_event(f"Payment approved: {body.payment_id} for user {user_id}")
         return {"message": "Payment approved and wallet balance updated."}
@@ -235,7 +235,7 @@ async def approve_payment(body: ApprovePaymentBody, background_tasks: Background
     if body.status == "rejected":
         payments_collection.update_one({"_id": payment_oid}, {"$set": {"status": "rejected", "verified_at": datetime.utcnow()}})
         if user:
-            background_tasks.add_task(send_email, "Payment Rejected ❌", user["email"], f"Your deposit of ₹{payment.get('amount')} has been rejected.")
+            background_tasks.add_task(send_email, "Payment Rejected", user["email"], f"Your deposit of ₹{payment.get('amount')} has been rejected.")
         return {"message": "Payment rejected."}
 
     raise HTTPException(status_code=400, detail="status must be approved or rejected")

@@ -21,7 +21,7 @@ try:
         VALIDATE_CERTS=True
     )
 except Exception as e:
-    logger.error(f"❌ Failed to initialize Email Configuration: {e}")
+    logger.error(f"Failed to initialize Email Configuration: {e}")
     conf = None
 
 async def send_email(subject: str, email_to: str, body: str):
@@ -42,6 +42,6 @@ async def send_email(subject: str, email_to: str, body: str):
     fm = FastMail(conf)
     try:
         await fm.send_message(message)
-        logger.info(f"✅ Email successfully sent to {email_to}: {subject}")
+        logger.info(f"Email successfully sent to {email_to}: {subject}")
     except Exception as e:
         log_error(f"Failed to send email to {email_to}", str(e))

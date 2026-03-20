@@ -13,10 +13,10 @@ def get_database_with_retry(uri, db_name, retries=5, delay=2):
     for i in range(retries):
         try:
             client.server_info()
-            print(f"✅ MongoDB connected successfully to {db_name}")
+            print(f"MongoDB connected successfully to {db_name}")
             return client, client[db_name]
         except errors.ServerSelectionTimeoutError as e:
-            print(f"❌ MongoDB connection attempt {i+1} failed: {e}")
+            print(f"MongoDB connection attempt {i+1} failed: {e}")
             if i < retries - 1:
                 time.sleep(delay)
             else:
@@ -41,15 +41,15 @@ referrals_collection = db["referrals"]
 def init_db():
     """Ensure indexes exist for performance and uniqueness"""
     try:
-        print("🛠️ Initializing database indexes...")
+        print("Initializing database indexes...")
         users_collection.create_index("email", unique=True)
         users_collection.create_index("referral_code", unique=True, sparse=True)
         referrals_collection.create_index("code", unique=True) # Per user request
         transactions_collection.create_index("user_id") # Per user request
         wallet_transactions_collection.create_index("user_id")
-        print("✅ Database indexes initialized.")
+        print("Database indexes initialized.")
     except Exception as e:
-        print(f"⚠️ Error initializing indexes: {e}")
+        print(f"Error initializing indexes: {e}")
 
 # Run initialization
 init_db()

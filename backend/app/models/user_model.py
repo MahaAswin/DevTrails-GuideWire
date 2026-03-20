@@ -4,7 +4,7 @@ from typing import Optional
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
-    phone: constr(regex=r"^\+?[1-9]\d{9,14}$")
+    phone: constr(pattern=r"^\+?[1-9]\d{9,14}$")
     password: constr(min_length=6)
     platform: str  # Zomato, Swiggy, Zepto, Amazon, Dunzo
     city: str
