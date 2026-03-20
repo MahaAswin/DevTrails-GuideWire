@@ -4,7 +4,7 @@ from typing import Optional
 class UserCreate(BaseModel):
     name: str = Field(..., example="Ramesh Sharma")
     email: EmailStr = Field(..., example="ramesh@example.com")
-    phone: str = Field(..., pattern=r"^\+?[1-9]\d{9,14}$", example="+919876543210")
+    phone: str = Field(..., regex=r"^\+?[1-9]\d{9,14}$", example="+919876543210")
     password: str = Field(..., min_length=6, example="securepassword")
     platform: str = Field(..., example="Zomato") # Zomato, Swiggy, Zepto, Amazon, Dunzo
     city: str = Field(..., example="Bangalore")

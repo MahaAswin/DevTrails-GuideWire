@@ -129,7 +129,7 @@ async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
         while users_collection.find_one({"referral_code": referral_code}):
             referral_code = generate_referral_code()
 
-        user_dict = user.model_dump()
+        user_dict = user.dict()
         user_dict["password"] = hash_password(user_dict["password"])
         user_dict["referral_code"] = referral_code
         user_dict["referral_points"] = 0

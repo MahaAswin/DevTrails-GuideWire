@@ -14,7 +14,7 @@ class ReportCreate(BaseModel):
 
 @router.post("/", summary="Submit a new emergency report")
 async def create_report(report: ReportCreate):
-    report_dict = report.model_dump()
+    report_dict = report.dict()
     report_dict["created_at"] = datetime.utcnow()
     reports_collection.insert_one(report_dict)
     return {

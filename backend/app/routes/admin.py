@@ -78,7 +78,7 @@ async def get_all_policies():
 
 @router.post("/add-policy")
 async def add_policy(policy: PolicyCreate):
-    doc = policy.model_dump()
+    doc = policy.dict()
     doc["created_at"] = datetime.utcnow()
     result = policies_collection.insert_one(doc)
     return {"message": "Policy created successfully", "policy_id": str(result.inserted_id)}
