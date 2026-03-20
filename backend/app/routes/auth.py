@@ -72,39 +72,27 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password with dual strategy for backward compatibility."""
+    """Verify password with pre-hash check and standard passlib fallback."""
     try:
-        if hashed_password is None:
+        if not hashed_password:
             return False
-        if isinstance(hashed_password, bytes):
-            hashed_password = hashed_password.decode("utf-8", errors="ignore")
+        
+        # Consistent decoding for both Pydantic v1 (str) and manual db queries (bytes)
+        if hasattr(hashed_password, "decode"):
+            hashed_password = hashed_password.decode("utf-8")
         hashed_password = str(hashed_password).strip()
 
-        # Binary versions needed for bcrypt
-        p_bytes = plain_password.encode()
-        h_bytes = hashed_password.encode()
-
-        # 1. Try with SHA-256 pre-hash (New logic)
-        pre_hash = hashlib.sha256(p_bytes).hexdigest().encode()
-        if bcrypt.checkpw(pre_hash, h_bytes):
+        # 1. Try with SHA-256 pre-hash (Bypasses bcrypt 72-byte limit)
+        pre_hash = hashlib.sha256(plain_password.encode()).hexdigest()
+        if pwd_context.verify(pre_hash, hashed_password):
             return True
 
-        # 2. Try WITHOUT pre-hash (Old logic for existing users)
-        if bcrypt.checkpw(p_bytes, h_bytes):
+        # 2. Try WITHOUT pre-hash (Backward compatibility)
+        if pwd_context.verify(plain_password, hashed_password):
             return True
             
     except Exception as e:
-        # Fallback to passlib if direct bcrypt fails (e.g. for legacy identifying prefixes)
-        try:
-            # Try new logic with passlib
-            pre_hash_str = hashlib.sha256(plain_password.encode()).hexdigest()
-            if pwd_context.verify(pre_hash_str, hashed_password):
-                return True
-            # Try old logic with passlib
-            if pwd_context.verify(plain_password, hashed_password):
-                return True
-        except:
-            pass
+        logger.error(f"Password verification error: {e}")
             
     return False
 

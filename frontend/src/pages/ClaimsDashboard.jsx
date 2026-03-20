@@ -35,7 +35,7 @@ const ClaimsDashboard = () => {
 
     // Fetch Safety Status for Worker
     if (currentUser.role === 'worker' && currentUser.city) {
-      fetch(`${BASE_URL}/weather/current?city=${currentUser.city}`)
+      fetch(`${BASE_URL}/api/weather/current?city=${currentUser.city}`)
         .then(res => res.json())
         .then(data => setSafetyStatus(data))
         .catch(err => console.error("Safety check failed", err));
@@ -45,7 +45,7 @@ const ClaimsDashboard = () => {
   const checkEligibility = async () => {
     setChecking(true);
     try {
-      const res = await fetch(`${BASE_URL}/weather/current?city=${user.city}`);
+      const res = await fetch(`${BASE_URL}/api/weather/current?city=${user.city}`);
       const data = await res.json();
       setSafetyStatus(data);
       if (data.eligible_for_claim) {

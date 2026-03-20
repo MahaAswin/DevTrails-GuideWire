@@ -14,7 +14,7 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
     try {
       setLoading(true);
       const cityName = typeof targetCity === 'object' ? (targetCity.name || targetCity.city || "Unknown") : (targetCity || "Unknown");
-      const res = await fetch(`${BASE_URL}/weather/current?city=${encodeURIComponent(cityName)}`);
+      const res = await fetch(`${BASE_URL}/api/weather/current?city=${encodeURIComponent(cityName)}`);
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload?.detail || payload?.message || "Failed to fetch weather");
       const data = payload;
@@ -40,7 +40,7 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
   const handleClaim = async () => {
     setClaiming(true);
     try {
-      const res = await fetch(`${BASE_URL}/weather/weather-claim`, {
+      const res = await fetch(`${BASE_URL}/api/weather/weather-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, city: city })
