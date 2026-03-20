@@ -10,6 +10,8 @@ from app.db.mongodb import (
     policies_collection,
     claims_collection,
     transactions_collection,
+    wallet_transactions_collection,
+    reports_collection,
     reward_payouts_collection,
     referrals_collection,
     payments_collection
@@ -132,7 +134,7 @@ async def verify_claim(body: VerifyClaimBody, background_tasks: BackgroundTasks)
         })
 
         if user:
-            background_tasks.add_task(send_email, "Claim Approved", user["email"], f"Your claim for {claim.get('type')} has been approved. ₹{payout_amt} credited to your wallet.")
+            background_tasks.add_task(send_email, "Claim Approved", user["email"], f"Your claim for {claim.get('type')} has been approved. INR {payout_amt} credited to your wallet.")
         
         log_event(f"Claim approved: {body.claim_id} for user {user_id}")
         return {"message": "Claim approved and paid out."}
@@ -227,7 +229,7 @@ async def approve_payment(body: ApprovePaymentBody, background_tasks: Background
         })
 
         if user:
-            background_tasks.add_task(send_email, "Payment Approved", user["email"], f"Your deposit of ₹{amount} has been approved and credited to your wallet.")
+            background_tasks.add_task(send_email, "Payment Approved", user["email"], f"Your deposit of INR {amount} has been approved and credited to your wallet.")
 
         log_event(f"Payment approved: {body.payment_id} for user {user_id}")
         return {"message": "Payment approved and wallet balance updated."}
@@ -235,7 +237,7 @@ async def approve_payment(body: ApprovePaymentBody, background_tasks: Background
     if body.status == "rejected":
         payments_collection.update_one({"_id": payment_oid}, {"$set": {"status": "rejected", "verified_at": datetime.utcnow()}})
         if user:
-            background_tasks.add_task(send_email, "Payment Rejected", user["email"], f"Your deposit of ₹{payment.get('amount')} has been rejected.")
+            background_tasks.add_task(send_email, "Payment Rejected", user["email"], f"Your deposit of INR {payment.get('amount')} has been rejected.")
         return {"message": "Payment rejected."}
 
     raise HTTPException(status_code=400, detail="status must be approved or rejected")
@@ -281,7 +283,7 @@ async def process_reward_payout(body: ProcessRewardPayoutBody):
             }
         )
 
-        return {"message": "Payout approved! ₹ credited to worker wallet."}
+        return {"message": "Payout approved! INR credited to worker wallet."}
 
     if body.status == "rejected":
         refund_points = float(payout.get("points_deducted", 1000))
