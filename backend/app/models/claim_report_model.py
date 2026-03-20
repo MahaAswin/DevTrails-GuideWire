@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 class ClaimReportCreate(BaseModel):
     worker_id: str
@@ -8,7 +8,7 @@ class ClaimReportCreate(BaseModel):
     report_type: str
     description: str
     location: str
-    landmark: Optional[str] = None
+    landmark: str = ""
 
 class ClaimReportResponse(BaseModel):
     id: str
@@ -18,7 +18,7 @@ class ClaimReportResponse(BaseModel):
     report_type: str
     description: str
     location: str
-    landmark: Optional[str] = None
+    landmark: str = ""
     proof_images: List[str]
     status: str # pending, approved, rejected, under_review
     payout: float = 0

@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class Policy(BaseModel):
-    policy_id: str = Field(..., description="Unique identifier for the policy")
-    policy_type: str = Field(..., description="Type of coverage (e.g., Health, Accident, Vehicle)")
-    weekly_price: float = Field(..., description="Weekly premium cost for this policy")
-    coverage_amount: float = Field(..., description="Maximum payout amount")
-    trigger_condition: str = Field(..., description="Condition that triggers a parametric payout")
+    policy_id: str
+    policy_type: str
+    weekly_price: float
+    coverage_amount: float
+    trigger_condition: str

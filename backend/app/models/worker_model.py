@@ -1,10 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 
 class Worker(BaseModel):
-    worker_id: str = Field(..., description="Unique identifier for the worker")
-    name: str = Field(..., description="Full name of the worker")
-    platform: str = Field(..., description="Gig platform (e.g., Zomato, Swiggy, Amazon)")
-    city: str = Field(..., description="City of operation")
-    risk_score: Optional[float] = Field(None, description="AI-calculated risk score")
-    weekly_premium: Optional[float] = Field(None, description="Calculated weekly insurance premium")
+    worker_id: str
+    name: str
+    platform: str
+    city: str
+    risk_score: Optional[float] = 0.0
+    weekly_premium: Optional[float] = 0.0

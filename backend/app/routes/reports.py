@@ -1,16 +1,16 @@
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from app.db.mongodb import reports_collection, users_collection
 from datetime import datetime
 
 router = APIRouter()
 
 class ReportCreate(BaseModel):
-    worker_id: str = Field(..., example="WK-12001")
-    platform: str = Field(..., example="Zomato")
-    location: str = Field(..., example="Indiranagar, Bangalore")
-    problem_type: str = Field(..., example="Heavy Rain")
-    description: str = Field(..., example="Streets flooded entirely")
+    worker_id: str
+    platform: str
+    location: str
+    problem_type: str
+    description: str
 
 @router.post("/", summary="Submit a new emergency report")
 async def create_report(report: ReportCreate):

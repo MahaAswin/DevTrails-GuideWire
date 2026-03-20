@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
@@ -16,4 +16,4 @@ class WeatherClaim(BaseModel):
     rain_level: float
     payout: float
     status: str = "approved"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = datetime.utcnow()

@@ -1,19 +1,19 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, constr
 from typing import Optional
 
 class UserCreate(BaseModel):
-    name: str = Field(..., example="Ramesh Sharma")
-    email: EmailStr = Field(..., example="ramesh@example.com")
-    phone: str = Field(..., regex=r"^\+?[1-9]\d{9,14}$", example="+919876543210")
-    password: str = Field(..., min_length=6, example="securepassword")
-    platform: str = Field(..., example="Zomato") # Zomato, Swiggy, Zepto, Amazon, Dunzo
-    city: str = Field(..., example="Bangalore")
-    role: Optional[str] = Field("worker", example="worker") # worker or admin
-    referred_by: Optional[str] = Field(None, example="REF123")
+    name: str
+    email: EmailStr
+    phone: constr(regex=r"^\+?[1-9]\d{9,14}$")
+    password: constr(min_length=6)
+    platform: str  # Zomato, Swiggy, Zepto, Amazon, Dunzo
+    city: str
+    role: Optional[str] = "worker"  # worker or admin
+    referred_by: str = ""
 
 class UserLogin(BaseModel):
-    email: EmailStr = Field(..., example="ramesh@example.com")
-    password: str = Field(..., example="securepassword")
+    email: EmailStr
+    password: str
 
 class UserResponse(BaseModel):
     id: str

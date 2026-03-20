@@ -3,7 +3,7 @@ from typing import Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.db.mongodb import (
     users_collection,
@@ -36,13 +36,13 @@ def _safe_object_id(oid: str) -> Optional[ObjectId]:
 
 
 class PolicyCreate(BaseModel):
-    name: str = Field(..., example="Monsoon Heatwave Protection")
-    platform: str = Field(..., example="Zomato")
-    weekly_premium: int = Field(..., example=45)
-    max_coverage: int = Field(..., example=5000)
-    trigger_condition: str = Field(..., example="IMD Red Alert or Temp > 45°C")
-    description: str = Field(..., example="Comprehensive coverage against extreme monsoon conditions.")
-    detailed_benefits: str = Field(..., example="Includes protection for lost income and accidental damages.")
+    name: str
+    platform: str
+    weekly_premium: int
+    max_coverage: int
+    trigger_condition: str
+    description: str
+    detailed_benefits: str
 
 
 class VerifyClaimBody(BaseModel):
