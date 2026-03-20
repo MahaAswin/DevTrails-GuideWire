@@ -12,7 +12,7 @@ from app.utils.logger import logger, log_api_request
 
 load_dotenv()
 
-# Enable insecure transport for local OAuth (fixes 'mismatching_state' on http)
+# Enable insecure transport for local OAuth (only for local testing)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 app = FastAPI(
@@ -21,7 +21,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Global Exception Handler
+# ✅ Global Exception Handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global Error: {str(exc)}\n{traceback.format_exc()}")
@@ -30,14 +30,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error. Our team has been notified."}
     )
 
-# Middleware for logging
+# ✅ Middleware for logging
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     response = await call_next(request)
     log_api_request(request.method, str(request.url), response.status_code)
     return response
 
-# Session middleware for Google OAuth
+# ✅ Session middleware for Google OAuth
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET_KEY", "shieldgig-secret-key-change-in-production"),
@@ -45,15 +45,19 @@ app.add_middleware(
     https_only=False
 )
 
+# ✅ FIXED CORS (IMPORTANT 🔥)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Production-ready: allow all origins for API access
+    allow_origins=[
+        "http://localhost:5173",   # local frontend
+        "https://shieldgig.vercel.app"  # deployed frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routers
+# ✅ Routers
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(user.router, prefix="/user", tags=["User"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
@@ -65,10 +69,13 @@ app.include_router(claim_reports.router, prefix="/claims-evidence", tags=["Claim
 app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 app.include_router(ai.router, prefix="/ai", tags=["AI"])
 
+# ✅ Static files
 if not os.path.exists("uploads"):
     os.makedirs("uploads", exist_ok=True)
+
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# ✅ Health check
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "ok", "message": "ShieldGig Production API is running"}
