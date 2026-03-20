@@ -74,6 +74,12 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password with dual strategy for backward compatibility."""
     try:
+        if hashed_password is None:
+            return False
+        if isinstance(hashed_password, bytes):
+            hashed_password = hashed_password.decode("utf-8", errors="ignore")
+        hashed_password = str(hashed_password).strip()
+
         # Binary versions needed for bcrypt
         p_bytes = plain_password.encode()
         h_bytes = hashed_password.encode()
@@ -128,7 +134,9 @@ async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="Password too long (max 128 characters)")
     
     try:
-        if users_collection.find_one({"email": user.email}):
+        email_norm = user.email.lower().strip()
+
+        if users_collection.find_one({"email": email_norm}) or users_collection.find_one({"email": user.email}):
             raise HTTPException(status_code=400, detail="Email already registered")
 
         if users_collection.find_one({"phone": user.phone}):
@@ -139,6 +147,7 @@ async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
             referral_code = generate_referral_code()
 
         user_dict = user.dict()
+        user_dict["email"] = email_norm
         user_dict["password"] = hash_password(user_dict["password"])
         user_dict["referral_code"] = referral_code
         user_dict["referral_points"] = 0
@@ -190,7 +199,8 @@ async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
 
 @router.post("/login", response_model=UserResponse)
 async def login_user(login_data: UserLogin):
-    user = users_collection.find_one({"email": login_data.email})
+    email_norm = login_data.email.lower().strip()
+    user = users_collection.find_one({"email": email_norm}) or users_collection.find_one({"email": login_data.email})
     if not user or not verify_password(login_data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -216,7 +226,8 @@ class TokenResponse(BaseModel):
 
 @router.post("/token", response_model=TokenResponse)
 async def login_token(login_data: UserLogin):
-    user = users_collection.find_one({"email": login_data.email})
+    email_norm = login_data.email.lower().strip()
+    user = users_collection.find_one({"email": email_norm}) or users_collection.find_one({"email": login_data.email})
     if not user or not verify_password(login_data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 

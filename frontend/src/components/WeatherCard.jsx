@@ -15,12 +15,13 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
       setLoading(true);
       const cityName = typeof targetCity === 'object' ? (targetCity.name || targetCity.city || "Unknown") : (targetCity || "Unknown");
       const res = await fetch(`${BASE_URL}/weather/current?city=${encodeURIComponent(cityName)}`);
-      if (!res.ok) throw new Error("Failed to fetch weather");
-      const data = await res.json();
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.detail || payload?.message || "Failed to fetch weather");
+      const data = payload;
       setWeatherData(data);
       setError(null);
     } catch (err) {
-      setError("Unable to load weather data");
+      setError(err?.message || "Unable to load weather data");
       console.error(err);
     } finally {
       setLoading(false);
@@ -44,16 +45,14 @@ const WeatherCard = ({ city, userEmail, onClaimSuccess, onCityChange }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, city: city })
       });
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.message);
-        if (onClaimSuccess) onClaimSuccess(data.payout);
-        fetchWeather(); // Refresh to check daily claim status implicitly or update state
-      } else {
-        alert(data.detail || "Claim failed");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || data?.message || "Claim failed");
+
+      alert(data.message);
+      if (onClaimSuccess) onClaimSuccess(data.payout);
+      fetchWeather(); // Refresh to check daily claim status implicitly or update state
     } catch (err) {
-      alert("Error processing claim");
+      alert(err?.message || "Error processing claim");
       console.error(err);
     } finally {
       setClaiming(false);

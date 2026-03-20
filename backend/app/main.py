@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import os
 import traceback
 
-from app.routes import auth, policies, wallet, weather, claims, admin, user, claim_reports, analytics, ai
+from app.routes import auth, policies, wallet, weather, claims, admin, user, claim_reports, analytics, ai, workers
 from app.utils.logger import logger, log_api_request
 
 load_dotenv()
@@ -48,8 +48,15 @@ app.add_middleware(
 # ✅ CORS (Vercel -> Render)
 # NOTE: Browsers require `Access-Control-Allow-Origin` to match the exact `Origin`
 # when `allow_credentials=True`. Use an explicit allowlist (no '*').
-cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,https://shieldgig.vercel.app")
-cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+cors_origins_raw = os.getenv("CORS_ORIGINS", "https://shieldgig.vercel.app,http://localhost:5173")
+cors_origins = []
+for o in cors_origins_raw.split(","):
+    o = (o or "").strip()
+    if not o:
+        continue
+    # Normalize possible trailing slash to avoid mismatches.
+    cors_origins.append(o.rstrip("/"))
+cors_origins = list(dict.fromkeys(cors_origins))
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,10 +73,12 @@ app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(policies.router, prefix="/policies", tags=["Policies"])
 app.include_router(wallet.router, prefix="/wallet", tags=["Wallet"])
 app.include_router(weather.router, prefix="/weather", tags=["Weather"])
+app.include_router(weather.router, prefix="/api/weather", tags=["Weather (API Alias)"])
 app.include_router(claims.router, prefix="/claims", tags=["Claims"])
 app.include_router(claim_reports.router, prefix="/claims-evidence", tags=["Claim Evidence"])
 app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 app.include_router(ai.router, prefix="/ai", tags=["AI"])
+app.include_router(workers.router, prefix="/workers", tags=["Workers"])
 
 # ✅ Static files
 if not os.path.exists("uploads"):
