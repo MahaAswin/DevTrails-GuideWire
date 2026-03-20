@@ -1,84 +1,124 @@
-from fastapi import APIRouter, HTTPException, status
-from app.models.user_model import UserCreate, UserLogin, UserResponse
-from app.database.mongodb import users_collection
-from bson import ObjectId
-
-router = APIRouter()
-
-# Simple mock hashing for the prototype, in production use passlib/bcrypt
-def hash_password(password: str) -> str:
-    return password + "_hashed"
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return plain_password + "_hashed" == hashed_password
-
+from datetime import datetime, timedelta
+import os
 import random
 import string
 
-def generate_referral_code(length=6):
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from starlette.requests import Request
+from fastapi.responses import RedirectResponse
+from authlib.integrations.starlette_client import OAuth
+import asyncio
+
+# Enable insecure transport for local development (fixes 'mismatching_state' CSRF)
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+from app.models.user_model import UserCreate, UserLogin, UserResponse
+from app.database.mongodb import users_collection
+
+# Import AI utilities (wrapped in try for safety during install/setup)
+try:
+    from app.utils.ai_email import generate_email_content
+    from app.utils.email import send_email
+except ImportError:
+    print("Warning: Email utilities or Gemini not fully installed yet.")
+    generate_email_content = None
+    send_email = None
+
+
+router = APIRouter()
+
+JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "shieldgig-jwt-secret"))
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+oauth = OAuth()
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    oauth.register(
+        name="google",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"}
+    )
+
+security = HTTPBearer()
+
+
+def hash_password(password: str) -> str:
+    # Simple deterministic hash compatible with previous implementation
+    return password + "_hashed"
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return hash_password(plain_password) == hashed_password
+
+
+def create_access_token(data: dict) -> str:
+    payload = data.copy()
+    payload["exp"] = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def generate_referral_code(length: int = 8) -> str:
+    return "REF" + "".join(random.choices(string.ascii_uppercase + string.digits, k=length - 3))
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register_user(user: UserCreate):
-    # Check if email exists
+async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
     if users_collection.find_one({"email": user.email}):
         raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Check if phone exists (for uniqueness)
+
     if users_collection.find_one({"phone": user.phone}):
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    # Generate unique referral code for new user
     referral_code = generate_referral_code()
-    while users_collection.find_one({"referralCode": referral_code}):
+    while users_collection.find_one({"referral_code": referral_code}):
         referral_code = generate_referral_code()
 
-    # Create new user document
     user_dict = user.model_dump()
     user_dict["password"] = hash_password(user_dict["password"])
-    user_dict["referralCode"] = referral_code
-    user_dict["rewardPoints"] = 0
+    user_dict["referral_code"] = referral_code
+    user_dict["referral_points"] = 0
+    user_dict["wallet_balance"] = 0.0
     user_dict["reminderEnabled"] = True
-    
-    # Handle referral logic
-    if user.referredBy:
-        if user.referredBy == referral_code:
-             raise HTTPException(status_code=400, detail="You cannot refer yourself")
-        
-        referrer = users_collection.find_one({"referralCode": user.referredBy})
-        if referrer:
-            # Credit both users 100 points
-            user_dict["rewardPoints"] += 100
-            users_collection.update_one(
-                {"_id": referrer["_id"]},
-                {"$inc": {"rewardPoints": 100}}
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Invalid referral code")
+    user_dict["created_at"] = datetime.utcnow()
 
     result = users_collection.insert_one(user_dict)
-    
-    # Return response
+    user_id = str(result.inserted_id)
+
+    # --- AI Email Notification ---
+    if generate_email_content and send_email:
+        async def send_welcome_email():
+            email_body = await generate_email_content("register", user_dict["name"])
+            await send_email("Welcome to ShieldGig 🎉", user.email, email_body)
+            
+        background_tasks.add_task(send_welcome_email)
+    # ----------------------------
+
     response_data = user.model_dump(exclude={"password"})
-    response_data["id"] = str(result.inserted_id)
-    response_data["referralCode"] = referral_code
-    response_data["rewardPoints"] = user_dict["rewardPoints"]
+    response_data["id"] = user_id
+    response_data["referral_code"] = referral_code
+    response_data["referral_points"] = user_dict["referral_points"]
+    response_data["wallet_balance"] = user_dict["wallet_balance"]
     response_data["reminderEnabled"] = True
-    response_data["wallet_balance"] = user_dict.get("wallet_balance", 0)
-    
+
     return response_data
+
 
 @router.post("/login", response_model=UserResponse)
 async def login_user(login_data: UserLogin):
     user = users_collection.find_one({"email": login_data.email})
-    
-    if not user:
+    if not user or not verify_password(login_data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-        
-    if not verify_password(login_data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-        
-    # Return user details for frontend state (simulating JWT payload)
+
     return {
         "id": str(user["_id"]),
         "name": user["name"],
@@ -87,8 +127,122 @@ async def login_user(login_data: UserLogin):
         "platform": user.get("platform", "None"),
         "city": user.get("city", "None"),
         "role": user.get("role", "worker"),
-        "referralCode": user.get("referralCode", "N/A"),
-        "rewardPoints": user.get("rewardPoints", 0),
+        "referral_code": user.get("referral_code", "N/A"),
+        "referral_points": user.get("referral_points", 0),
         "reminderEnabled": user.get("reminderEnabled", True),
-        "wallet_balance": user.get("wallet_balance", 0)
+        "wallet_balance": user.get("wallet_balance", 0.0),
+    }
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+@router.post("/token", response_model=TokenResponse)
+async def login_token(login_data: UserLogin):
+    user = users_collection.find_one({"email": login_data.email})
+    if not user or not verify_password(login_data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_access_token({"sub": str(user["_id"]), "email": user["email"]})
+    return TokenResponse(access_token=token)
+
+
+@router.get("/google/login")
+async def google_login(request: Request):
+    if not oauth.google:
+        raise HTTPException(status_code=500, detail="Google OAuth not configured")
+    return await oauth.google.authorize_redirect(request, GOOGLE_REDIRECT_URI)
+
+
+@router.get("/google/callback")
+async def google_callback(request: Request):
+    if not oauth.google:
+        raise HTTPException(status_code=500, detail="Google OAuth not configured")
+        
+    try:
+        # Explicitly pass redirect_uri to prevent 'invalid_grant' on local environments
+        token_data = await oauth.google.authorize_access_token(request)
+    except Exception as e:
+        print(f"OAuth Exchange Error: {e}")
+        raise HTTPException(status_code=400, detail=f"OAuth failed: {e}")
+        
+    user_info = token_data.get("userinfo")
+    if not user_info:
+        try:
+            user_info = await oauth.google.parse_id_token(request, token_data)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch user info: {str(e)}")
+            
+    if not user_info:
+        raise HTTPException(status_code=400, detail="Failed to fetch user info from Google entirely")
+        
+    email = user_info.get("email")
+    name = user_info.get("name")
+    
+    user = users_collection.find_one({"email": email})
+    if not user:
+        referral_code = generate_referral_code()
+        while users_collection.find_one({"referral_code": referral_code}):
+            referral_code = generate_referral_code()
+            
+        new_user = {
+            "name": name,
+            "email": email,
+            "password": hash_password(os.urandom(16).hex()),
+            "referral_code": referral_code,
+            "referral_points": 0,
+            "wallet_balance": 0.0,
+            "reminderEnabled": True,
+            "created_at": datetime.utcnow(),
+            "role": "worker"
+        }
+        result = users_collection.insert_one(new_user)
+        user_id = str(result.inserted_id)
+        
+        # Async email for new Google user
+        if generate_email_content and send_email:
+            async def send_welcome():
+                try:
+                    email_body = await generate_email_content("register", name)
+                    await send_email("Welcome to ShieldGig 🎉", email, email_body)
+                except Exception as e:
+                    print(f"Error sending welcome email: {e}")
+            asyncio.create_task(send_welcome())
+    else:
+        user_id = str(user["_id"])
+
+    token = create_access_token({"sub": user_id, "email": email})
+    redirect_url = f"{FRONTEND_URL}/?token={token}"
+    return RedirectResponse(url=redirect_url)
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(credentials: HTTPAuthorizationCredentials = security):
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    user = users_collection.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "id": str(user["_id"]),
+        "name": user["name"],
+        "email": user["email"],
+        "phone": user.get("phone", "N/A"),
+        "platform": user.get("platform", "None"),
+        "city": user.get("city", "None"),
+        "role": user.get("role", "worker"),
+        "referral_code": user.get("referral_code", "N/A"),
+        "referral_points": user.get("referral_points", 0),
+        "reminderEnabled": user.get("reminderEnabled", True),
+        "wallet_balance": user.get("wallet_balance", 0.0),
     }

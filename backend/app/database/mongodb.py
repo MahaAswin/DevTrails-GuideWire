@@ -29,9 +29,9 @@ claim_reports_collection = db["claim_reports"]
 wallet_transactions_collection = db["wallet_transactions"]
 weather_claims_collection = db["weather_claims"]
 reward_payouts_collection = db["reward_payouts"]
+referrals_collection = db["referrals"]
 
-def get_db():
-    return db
+# Performance Optimization: Ensure indexes for fast lookups (OAuth & Referrals)
+users_collection.create_index("email", unique=True)
+users_collection.create_index("referral_code", unique=True, sparse=True)
 
-def get_collection(collection_name: str):
-    return db[collection_name]

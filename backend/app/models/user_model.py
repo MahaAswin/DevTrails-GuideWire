@@ -9,7 +9,7 @@ class UserCreate(BaseModel):
     platform: str = Field(..., example="Zomato") # Zomato, Swiggy, Zepto, Amazon, Dunzo
     city: str = Field(..., example="Bangalore")
     role: Optional[str] = Field("worker", example="worker") # worker or admin
-    referredBy: Optional[str] = Field(None, example="REF123")
+    referred_by: Optional[str] = Field(None, example="REF123")
 
 class UserLogin(BaseModel):
     email: EmailStr = Field(..., example="ramesh@example.com")
@@ -23,7 +23,7 @@ class UserResponse(BaseModel):
     platform: str
     city: str
     role: str
-    referralCode: str
-    rewardPoints: int
+    referral_code: str
+    referral_points: int
     reminderEnabled: bool
     wallet_balance: Optional[float] = 0

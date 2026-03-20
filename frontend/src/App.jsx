@@ -11,6 +11,7 @@ import RiskAnalytics from './pages/RiskAnalytics';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import OAuthCallback from './pages/OAuthCallback';
 import WorkerDashboard from './pages/WorkerDashboard';
 import WorkerBenefits from './pages/WorkerBenefits';
 import ReportEmergency from './pages/ReportEmergency';
@@ -34,10 +35,11 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 const DashboardLayout = ({ children }) => (
-  <div className="flex flex-1 overflow-hidden w-full">
+  <div className="flex w-full h-[calc(100vh-64px)] overflow-hidden">
     <Sidebar />
     <main className="flex-1 overflow-y-auto p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
+      {/* Make page content stretch full width */}
+      <div className="w-full">
         {children}
       </div>
     </main>
@@ -54,6 +56,7 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/callback" element={<OAuthCallback />} />
             
             {/* Admin/Dashboard Routes */}
             <Route path="/dashboard" element={<ProtectedRoute allowedRole="admin"><><TopNav /><DashboardLayout><Dashboard /></DashboardLayout></></ProtectedRoute>} />

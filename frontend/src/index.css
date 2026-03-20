@@ -2,9 +2,10 @@
 
 @variant dark (&:where(.dark, .dark *));
 @theme {
-  --color-primary: #10B981;
-  --color-secondary: #F59E0B;
-  --color-accent: #3B82F6;
+  /* Swiggy-style primary accent */
+  --color-primary: #ff6b00;
+  --color-secondary: #facc15;
+  --color-accent: #ff6b00;
   --color-dark-bg: #0B0F19;
   --color-card-dark: #111827;
   --color-light-bg: #F8FAFC;
@@ -13,13 +14,13 @@
 
 @layer base {
   :root {
-    --bg-color: var(--color-light-bg);
-    --text-color: #1e293b; /* slate-800 */
+    --bg-color: #0B0F19; /* Always dark background */
+    --text-color: #F9FAFB;
   }
 
   .dark {
-    --bg-color: var(--color-dark-bg);
-    --text-color: #E5E7EB;
+    --bg-color: #0B0F19;
+    --text-color: #F9FAFB;
   }
 
   body {

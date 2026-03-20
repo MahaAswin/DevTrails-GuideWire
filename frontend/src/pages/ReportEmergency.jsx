@@ -118,14 +118,14 @@ const ReportEmergency = () => {
   if (status === 'success') {
     return (
       <div className="h-[80vh] flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 text-center px-4">
-        <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
+        <div className="w-24 h-24 bg-[#FF6B00] rounded-full flex items-center justify-center mb-6 shadow-xl shadow-orange-500/25">
           <CheckCircle2 size={48} className="text-white" />
         </div>
-        <h2 className="text-4xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-emerald-400 mb-4 uppercase">Report & Evidence Logged.</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-lg max-w-md">Our AI system will verify your report via live data channels and physical evidence to process your claim payout.</p>
+        <h2 className="text-4xl font-black tracking-tighter text-slate-50 mb-4 uppercase">Report & Evidence Logged.</h2>
+        <p className="text-slate-400 text-lg max-w-md">Our AI system will verify your report via live data channels and physical evidence to process your claim payout.</p>
         <button 
           onClick={() => { setStatus('idle'); setFormData({location: '', landmark: '', problem_type: '', description: ''}); setFiles([]); }}
-          className="mt-8 text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+          className="mt-8 text-slate-300 font-semibold hover:text-slate-50"
         >
           Submit another report
         </button>
@@ -164,7 +164,7 @@ const ReportEmergency = () => {
                   required 
                   value={formData.problem_type}
                   onChange={e => setFormData({...formData, problem_type: e.target.value})}
-                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all font-bold"
+                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-[#FF6B00] transition-all font-bold"
                 >
                   <option value="">Select type...</option>
                   {['Severe Weather', 'Vehicle Repair', 'Medical Emergency', 'Road Block', 'Police Curfew', 'Platform Outage', 'Accident', 'Other'].map(type => (
@@ -182,7 +182,7 @@ const ReportEmergency = () => {
                       required 
                       value={formData.location}
                       onChange={e => setFormData({...formData, location: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all font-bold"
+                      className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-[#FF6B00] transition-all font-bold"
                     >
                       <option value="">Select zone...</option>
                       <option value="Koramangala, Bangalore">Koramangala, Bangalore</option>
@@ -200,7 +200,7 @@ const ReportEmergency = () => {
                       placeholder="e.g. Near HSR BDA Complex"
                       value={formData.landmark}
                       onChange={e => setFormData({...formData, landmark: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all font-bold"
+                      className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-[#FF6B00] transition-all font-bold"
                     />
                   </div>
                </div>
@@ -244,7 +244,7 @@ const ReportEmergency = () => {
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                   placeholder="Explain exactly what happened..."
-                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all font-medium"
+                  className="w-full bg-slate-50 dark:bg-[#0B0F19] border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-[#FF6B00] transition-all font-medium"
                 ></textarea>
               </div>
             </div>
@@ -255,12 +255,12 @@ const ReportEmergency = () => {
         <div className="space-y-6">
           <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm space-y-6">
             <h3 className="font-bold flex items-center justify-between">
-              <span className="flex items-center gap-2 italic uppercase tracking-tighter"><Upload size={20} className="text-emerald-500"/> Physical Evidence</span>
-              <span className="text-[10px] font-black bg-slate-100 dark:bg-emerald-500/10 px-2 py-0.5 rounded text-emerald-500 uppercase">{files.length} Files</span>
+              <span className="flex items-center gap-2 italic uppercase tracking-tighter"><Upload size={20} className="text-[#FF6B00]"/> Physical Evidence</span>
+              <span className="text-[10px] font-black bg-slate-100 dark:bg-[#111827] px-2 py-0.5 rounded text-[#FF6B00] uppercase">{files.length} Files</span>
             </h3>
 
             <div 
-              className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center bg-slate-50/50 dark:bg-slate-800/30 hover:border-indigo-500/50 transition-all cursor-pointer relative group"
+              className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center bg-slate-50/50 dark:bg-slate-800/30 hover:border-[#FF6B00]/50 transition-all cursor-pointer relative group"
             >
               <input 
                 type="file" 
@@ -282,7 +282,7 @@ const ReportEmergency = () => {
               {files.map((file, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 group">
                   <div className="flex items-center gap-2 truncate">
-                    {file.type.includes('image') ? <ImageIcon size={14} className="text-emerald-500"/> : <File size={14} className="text-indigo-500"/>}
+                    {file.type.includes('image') ? <ImageIcon size={14} className="text-[#FF6B00]"/> : <File size={14} className="text-slate-400"/>}
                     <span className="text-[11px] font-bold truncate max-w-[150px]">{file.name}</span>
                   </div>
                   <button type="button" onClick={() => removeFile(i)} className="text-slate-400 hover:text-rose-500">&times;</button>
@@ -293,17 +293,17 @@ const ReportEmergency = () => {
             <button 
               type="submit" 
               disabled={status === 'submitting'}
-              className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase italic tracking-widest py-4 rounded-2xl shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex justify-center items-center gap-3 disabled:opacity-50`}
+              className={`w-full bg-[#FF6B00] hover:bg-[#FF8C42] text-white font-black uppercase italic tracking-widest py-4 rounded-2xl shadow-xl shadow-orange-500/25 transition-all active:scale-95 flex justify-center items-center gap-3 disabled:opacity-50`}
             >
               {status === 'submitting' ? 'Submitting...' : <><Send size={20}/> Submit Incident</>}
             </button>
           </div>
 
-          <div className="bg-indigo-50 dark:bg-indigo-500/5 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 flex gap-4">
-             <AlertCircle className="text-indigo-500 shrink-0" size={24} />
+          <div className="bg-[#111827] p-6 rounded-3xl border border-[#1F2937] flex gap-4">
+             <AlertCircle className="text-slate-400 shrink-0" size={24} />
              <div className="text-sm">
-                <p className="font-bold text-indigo-900 dark:text-indigo-400 uppercase tracking-tight">Verified Coverage</p>
-                <p className="text-indigo-800/70 dark:text-indigo-400/60 mt-1 leading-relaxed">Parametric triggers like 'Severe Weather' are verified automatically. Manual evidence helps speed up complex claims.</p>
+                <p className="font-bold text-slate-200 uppercase tracking-tight">Verified Coverage</p>
+                <p className="text-slate-400 mt-1 leading-relaxed">Parametric triggers like 'Severe Weather' are verified automatically. Manual evidence helps speed up complex claims.</p>
              </div>
           </div>
         </div>

@@ -105,10 +105,10 @@ const WalletPage = () => {
   };
 
   const handleExchangePoints = async () => {
-    if (user.rewardPoints < 1000) return;
+    if (user.referral_points < 1000) return;
     try {
       setSubmitting(true);
-      const res = await fetch('http://localhost:8000/user/claim-reward', {
+      const res = await fetch('http://localhost:8000/wallet/convert-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id || user._id })
@@ -117,7 +117,11 @@ const WalletPage = () => {
       if (res.ok) {
         alert(data.message);
         // Update user state for points
-        const updatedUser = { ...user, rewardPoints: user.rewardPoints - 1000 };
+        const updatedUser = { 
+          ...user, 
+          referral_points: data.new_points,
+          wallet_balance: data.new_balance
+        };
         setUser(updatedUser);
         localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
       } else {
@@ -236,10 +240,10 @@ const WalletPage = () => {
               <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Refer a Friend</p>
               <h4 className="text-lg font-black italic tracking-tighter uppercase mb-3 leading-tight">Earn ₹100 Bonus<br/>Per Signup</h4>
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex justify-between items-center border border-white/20">
-                <span className="font-mono font-bold">{user?.referralCode}</span>
+                <span className="font-mono font-bold">{user?.referral_code}</span>
                 <button 
                   onClick={() => {
-                    navigator.clipboard.writeText(user?.referralCode);
+                    navigator.clipboard.writeText(user?.referral_code);
                     alert("Referral code copied!");
                   }}
                   className="text-[10px] font-black uppercase bg-white text-indigo-600 px-3 py-1.5 rounded-lg active:scale-90 transition-transform"
@@ -254,12 +258,12 @@ const WalletPage = () => {
                 <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 flex items-center gap-2">
                    <QrCode size={16}/> Reward Hub
                 </h4>
-                <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">{user?.rewardPoints} PTS</span>
+                <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">{user?.referral_points} PTS</span>
               </div>
               <p className="text-[11px] text-slate-500 mb-5 font-medium italic leading-relaxed">Exchange 1000 points for ₹10 cash. Note: Admin approval required for final payout.</p>
               <button 
                 onClick={handleExchangePoints}
-                disabled={(user?.rewardPoints || 0) < 1000 || submitting}
+                disabled={(user?.referral_points || 0) < 1000 || submitting}
                 className="w-full py-4 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-2xl font-black uppercase italic tracking-tighter text-xs disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/10"
               >
                 <Send size={14} /> {submitting ? 'Processing...' : 'Redeem 1000 Points'}

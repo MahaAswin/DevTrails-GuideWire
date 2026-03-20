@@ -5,7 +5,7 @@ import WeatherCard from '../components/WeatherCard';
 const ICONS = { CloudRain, Car, Factory, ShieldAlert };
 
 const WorkerDashboard = () => {
-  const [user, setUser] = useState({ name: 'Worker', platform: 'Unknown', city: 'Unknown', email: '', wallet_balance: 0 });
+  const [user, setUser] = useState({ name: 'Worker', platform: 'Unknown', city: 'Unknown', email: '', wallet_balance: 0, referral_points: 0, referral_code: '' });
   const [policies, setPolicies] = useState([]);
   const [myClaims, setMyClaims] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,32 +83,34 @@ const WorkerDashboard = () => {
   };
 
   const handleClaimReward = async () => {
-    if (user.rewardPoints < 1000) return;
+    if (user.referral_points < 1000) return;
     try {
-      const res = await fetch('http://localhost:8000/user/claim-reward', {
+      const res = await fetch('http://localhost:8000/wallet/convert-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id })
       });
       if (res.ok) {
-        alert("Reward claimed! 1000 points deducted.");
-        const updatedUser = { ...user, rewardPoints: user.rewardPoints - 1000 };
+        const data = await res.json();
+        alert(data.message);
+        const updatedUser = { 
+          ...user, 
+          referral_points: data.new_points,
+          wallet_balance: data.new_balance
+        };
         setUser(updatedUser);
         localStorage.setItem('shieldgig_user', JSON.stringify(updatedUser));
       } else {
         const data = await res.json();
-        alert(data.detail || "Claim failed");
+        alert(data.detail || "Conversion failed");
       }
     } catch (err) {
-      console.error("Failed to claim reward", err);
+      console.error("Failed to convert points", err);
     }
   };
 
   // Platform specific theme colors
-  const platformColor = user.platform.toLowerCase() === 'zomato' ? 'rose' : 
-                        user.platform.toLowerCase() === 'swiggy' ? 'amber' :
-                        user.platform.toLowerCase() === 'zepto' ? 'emerald' :
-                        user.platform.toLowerCase() === 'amazon' ? 'blue' : 'emerald';
+  const platformColor = 'orange';
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -134,27 +136,42 @@ const WorkerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all relative overflow-hidden group`}>
+        <div className={`bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-[#1F2937] rounded-3xl p-6 shadow-lg transition-all relative overflow-hidden group`}>
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+            <div className="p-3 bg-[#111827] text-slate-300 rounded-xl border border-[#1F2937]">
               <ShieldCheck size={24} />
             </div>
           </div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Rewards Balance</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Referral Points</p>
           <div className="flex items-end justify-between">
-            <p className="text-2xl font-black italic tracking-tighter text-indigo-500 uppercase">{user.rewardPoints || 0} PTS</p>
-            {user.rewardPoints >= 1000 && (
+            <p className="text-2xl font-black italic tracking-tighter text-[#FF6B00] uppercase">{user.referral_points || 0} pts</p>
+            {user.referral_points >= 1000 && (
               <button 
                 onClick={handleClaimReward}
-                className="text-[10px] font-black bg-indigo-500 text-white px-3 py-1.5 rounded-lg uppercase tracking-widest hover:bg-indigo-600 transition-all"
+                className="text-[10px] font-black bg-[#FF6B00] text-white px-3 py-1.5 rounded-lg uppercase tracking-widest hover:bg-[#FF8C42] transition-all"
               >
-                Claim
+                Convert
               </button>
             )}
           </div>
-          <div className="absolute -bottom-4 -right-4 w-20 h-20 bg-indigo-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Your Code</p>
+             <div className="flex items-center justify-between bg-[#0B0F19] p-2 rounded-lg border border-[#1F2937]">
+                <span className="text-xs font-black text-[#FF6B00]">{user.referral_code || 'N/A'}</span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(user.referral_code);
+                    alert("Referral code copied!");
+                  }}
+                  className="text-[9px] font-black uppercase bg-[#FF6B00]/10 text-[#FF6B00] px-2 py-1 rounded hover:bg-[#FF6B00] hover:text-white transition-all"
+                >
+                  Copy
+                </button>
+             </div>
+          </div>
+          <div className="absolute -bottom-4 -right-4 w-20 h-20 bg-[#FF6B00]/5 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
         </div>
-        <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all`}>
+        <div className={`bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-[#1F2937] rounded-3xl p-6 shadow-sm transition-all`}>
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
               <ShieldCheck size={24} />
@@ -164,7 +181,7 @@ const WorkerDashboard = () => {
           <p className="text-xl font-black italic tracking-tighter dark:text-white uppercase">None Active</p>
         </div>
 
-        <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all`}>
+        <div className={`bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-[#1F2937] rounded-3xl p-6 shadow-sm transition-all`}>
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
               <Receipt size={24} />
@@ -184,7 +201,7 @@ const WorkerDashboard = () => {
           <p className="text-2xl font-black italic tracking-tighter text-emerald-500 uppercase">₹{user.wallet_balance?.toLocaleString()}</p>
         </div>
 
-        <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all flex flex-col justify-between`}>
+        <div className={`bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-[#1F2937] rounded-2xl p-5 shadow-sm transition-all flex flex-col justify-between max-h-64`}>
           <div>
             <div className="flex justify-between items-start mb-4">
               <div className="p-3 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl">
@@ -207,7 +224,7 @@ const WorkerDashboard = () => {
              </div>
           </div>
         </div>
-        <div className={`bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:border-emerald-500/30 transition-all`}>
+        <div className={`bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-[#1F2937] rounded-2xl p-5 shadow-sm transition-all max-h-64`}>
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
               <Activity size={24} />

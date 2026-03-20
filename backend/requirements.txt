@@ -4,3 +4,8 @@ pymongo
 python-dotenv
 pydantic
 motor
+authlib
+httpx
+itsdangerous
+python-multipart
+python-jose[cryptography]

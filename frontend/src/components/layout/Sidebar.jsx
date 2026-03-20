@@ -30,7 +30,7 @@ const Sidebar = () => {
   const navItems = isWorkerFlow ? workerNav : adminNav;
 
   return (
-    <div className="w-64 flex flex-col pt-4 px-4 h-[calc(100vh-64px)] overflow-y-auto bg-white/50 dark:bg-[#0B0F19] backdrop-blur-sm border-r border-slate-200 dark:border-slate-800">
+    <div className="w-64 flex flex-col pt-4 px-4 h-full bg-[#0F172A] border-r border-[#1F2937]">
       <nav className="flex-1 space-y-2 mt-4">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -41,8 +41,8 @@ const Sidebar = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#111827] hover:text-slate-900 dark:hover:text-emerald-400'
+                    ? 'bg-[#FF6B00] text-white shadow-md shadow-orange-500/25'
+                    : 'text-slate-400 hover:bg-[#111827] hover:text-slate-100'
                 }`
               }
             >
