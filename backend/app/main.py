@@ -45,13 +45,15 @@ app.add_middleware(
     https_only=False
 )
 
-# ✅ FIXED CORS (IMPORTANT 🔥)
+# ✅ CORS (Vercel -> Render)
+# NOTE: Browsers require `Access-Control-Allow-Origin` to match the exact `Origin`
+# when `allow_credentials=True`. Use an explicit allowlist (no '*').
+cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,https://shieldgig.vercel.app")
+cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # local frontend
-        "https://shieldgig.vercel.app"  # deployed frontend
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

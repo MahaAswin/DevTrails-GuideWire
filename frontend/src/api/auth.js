@@ -7,7 +7,11 @@ export async function registerUser(data) {
     body: JSON.stringify(data),
   });
 
-  return await res.json().catch(() => ({}));
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(payload?.detail || "Registration failed");
+  }
+  return payload;
 }
 
 export async function loginUser(data) {
@@ -17,6 +21,10 @@ export async function loginUser(data) {
     body: JSON.stringify(data),
   });
 
-  return await res.json().catch(() => ({}));
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(payload?.detail || "Login failed");
+  }
+  return payload;
 }
 

@@ -48,14 +48,20 @@ const Register = () => {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Registration failed');
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+        throw new Error(data?.detail || 'Registration failed');
       }
 
       // Registration success, redirect to login
       navigate('/login');
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || 'Registration failed';
+      setError(msg === 'Failed to fetch' ? 'Network/CORS error. Please try again later.' : msg);
     } finally {
       setLoading(false);
     }

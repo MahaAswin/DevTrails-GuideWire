@@ -115,6 +115,15 @@ def generate_referral_code(length: int = 8) -> str:
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
+    # Defensive required-field checks so we always return a clear 400 with `detail`
+    # instead of failing later with a less helpful error.
+    if not (user.name or "").strip():
+        raise HTTPException(status_code=400, detail="name is required")
+    if not (user.email or "").strip():
+        raise HTTPException(status_code=400, detail="email is required")
+    if not (user.password or "").strip():
+        raise HTTPException(status_code=400, detail="password is required")
+
     if len(user.password) > 128:
         raise HTTPException(status_code=400, detail="Password too long (max 128 characters)")
     
