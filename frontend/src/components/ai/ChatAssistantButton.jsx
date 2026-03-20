@@ -1,8 +1,59 @@
-import React, { useState } from 'react';
-import { MessageSquare, X, Send, Bot } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MessageSquare, X, Send, Bot, User, Loader2 } from 'lucide-react';
+
+const BACKEND_URL = 'http://localhost:8000';
 
 const ChatAssistantButton = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState([
+    { 
+      role: 'assistant', 
+      content: "Hello! I'm the ShieldGig AI. I can help you analyze risk patterns, verify parametric triggers, or query specific claims. How can I assist you today?" 
+    }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get response from AI');
+
+      const data = await response.json();
+      const aiMessage = { role: 'assistant', content: data.response };
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Chat Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "Sorry, I'm having trouble connecting right now. Please try again later." 
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
@@ -39,25 +90,51 @@ const ChatAssistantButton = () => {
           </button>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto bg-[#0B0F19] space-y-4">
-          <div className="bg-[#111827] p-3 rounded-2xl rounded-tl-sm shadow-sm border border-[#1F2937] max-w-[85%] text-sm text-slate-200 leading-relaxed">
-            Hello! I'm the ShieldGig AI. I can help you analyze risk patterns, verify parametric triggers, or query specific claims. How can I assist you today?
-          </div>
+        <div className="flex-1 p-4 overflow-y-auto bg-[#0B0F19] space-y-4 scrollbar-hide">
+          {messages.map((msg, idx) => (
+            <div 
+              key={idx} 
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+            >
+              <div className={`p-3 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm border ${
+                msg.role === 'user' 
+                  ? 'bg-[#FF6B00] text-white border-[#FF8C42] rounded-tr-sm' 
+                  : 'bg-[#111827] text-slate-200 border-[#1F2937] rounded-tl-sm'
+              }`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-[#111827] p-3 rounded-2xl rounded-tl-sm border border-[#1F2937] flex items-center gap-2 text-slate-400 text-xs">
+                <Loader2 size={14} className="animate-spin" />
+                Thinking...
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 bg-[#0F172A] rounded-b-2xl border-t border-[#1F2937]">
+        <form onSubmit={handleSendMessage} className="p-4 bg-[#0F172A] rounded-b-2xl border-t border-[#1F2937]">
           <div className="relative flex items-center">
             <input 
               type="text" 
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Ask anything..." 
-              className="w-full pl-4 pr-12 py-3 bg-[#111827] border border-[#1F2937] rounded-xl focus:ring-2 focus:ring-[#FF6B00] text-slate-100 text-sm outline-none"
+              className="w-full pl-4 pr-12 py-3 bg-[#111827] border border-[#1F2937] rounded-xl focus:ring-2 focus:ring-[#FF6B00] text-slate-100 text-sm outline-none transition-all"
+              disabled={isLoading}
             />
-            <button className="absolute right-2 p-1.5 bg-[#FF6B00] text-white rounded-lg hover:bg-[#FF8C42] transition-colors">
+            <button 
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="absolute right-2 p-1.5 bg-[#FF6B00] text-white rounded-lg hover:bg-[#FF8C42] disabled:opacity-50 disabled:hover:bg-[#FF6B00] transition-colors"
+            >
               <Send size={16} />
             </button>
           </div>
-          <p className="text-center text-[10px] text-slate-400 mt-2">LLM logic placeholder. Not connected to backend yet.</p>
-        </div>
+        </form>
       </div>
     </>
   );

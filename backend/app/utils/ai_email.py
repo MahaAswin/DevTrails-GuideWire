@@ -1,59 +1,52 @@
 import os
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Set insecure transport for local OAuth development to fix 'mismatching_state'
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
 # Configure Gemini
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
-    client = genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
+    # Using gemini-flash-latest for production efficiency
+    model = genai.GenerativeModel('gemini-flash-latest')
 else:
-    client = None
+    model = None
     print("Warning: GEMINI_API_KEY not found in environment for AI emails")
 
 async def generate_email_content(event_type: str, user_name: str, amount: float = None) -> str:
     """
     Generates intelligent, personalized html email content using Gemini AI.
     """
-    if not client:
-        return f"<p>Hello {user_name}, ShieldGig welcomes you! (AI key missing)</p>"
+    if not model:
+        return f"<p>Hello {user_name}, welcome to ShieldGig! We're glad to have you on board.</p>"
              
     try:
         if event_type == "register":
             prompt = (
-                f"Write a professional and friendly welcome email for a user named {user_name} "
-                "who just registered on ShieldGig, a platform that protects gig workers. "
-                "Make sure the response is entirely formatted in HTML (do not use markdown blocks like ```html). "
-                "Use clean, professional inline CSS styling. Make it sound human-like and highly personalized."
+                f"Write a warm welcome email for {user_name} who joined ShieldGig. "
+                "Mention that ShieldGig protects gig workers during emergencies and extreme weather. "
+                "Output ONLY the HTML body content. No backticks, no markdown blocks."
             )
         elif event_type == "payment":
-            amount_str = f"₹{amount}" if amount else "an amount"
+            amount_str = f"₹{amount}" if amount else "your payment"
             prompt = (
-                f"Write a professional payment confirmation email for {user_name} who paid {amount_str}. "
-                "Include gratitude and confirmation of the transaction. "
-                "Make sure the response is entirely formatted in HTML (do not use markdown blocks like ```html). "
-                "Use clean, professional inline CSS styling. Make it sound human-like and welcoming."
+                f"Write a confirmation email for {user_name} acknowledging their payment of {amount_str}. "
+                "Output ONLY the HTML body content. No backticks, no markdown blocks."
             )
         else:
-            prompt = (
-                f"Write a polite notification email to {user_name} regarding their account on ShieldGig. "
-                "Format entirely in HTML without markdown codeblocks."
-            )
+            prompt = f"Write a notification email for {user_name} regarding their ShieldGig account."
 
-        response = await client.aio.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
+        # Synchronous-like calling for simplicity, or use thread pool if needed
+        # google-generativeai generate_content is blocking, but SDK 0.4.0 supports async with some versions
+        # Here we prioritize robustness
+        response = model.generate_content(prompt)
         
         content = response.text.replace("```html", "").replace("```", "").strip() if response.text else ""
         if not content:
-             return f"<p>Hello {user_name}, your recent action on ShieldGig was successful!</p>"
+             return f"<p>Hello {user_name}, welcome to ShieldGig! Your action was successful.</p>"
         return content
         
     except Exception as e:
         print(f"Error generating AI email content: {e}")
-        return f"<p>Hello {user_name}, your recent action on ShieldGig was successful!</p>"
+        return f"<p>Hello {user_name}, welcome to ShieldGig! Your account is active.</p>"

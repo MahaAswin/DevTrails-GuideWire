@@ -76,44 +76,65 @@ def generate_referral_code(length: int = 8) -> str:
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserCreate, background_tasks: BackgroundTasks):
-    if users_collection.find_one({"email": user.email}):
-        raise HTTPException(status_code=400, detail="Email already registered")
+    try:
+        if users_collection.find_one({"email": user.email}):
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-    if users_collection.find_one({"phone": user.phone}):
-        raise HTTPException(status_code=400, detail="Phone number already registered")
+        if users_collection.find_one({"phone": user.phone}):
+            raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    referral_code = generate_referral_code()
-    while users_collection.find_one({"referral_code": referral_code}):
         referral_code = generate_referral_code()
+        while users_collection.find_one({"referral_code": referral_code}):
+            referral_code = generate_referral_code()
 
-    user_dict = user.model_dump()
-    user_dict["password"] = hash_password(user_dict["password"])
-    user_dict["referral_code"] = referral_code
-    user_dict["referral_points"] = 0
-    user_dict["wallet_balance"] = 0.0
-    user_dict["reminderEnabled"] = True
-    user_dict["created_at"] = datetime.utcnow()
+        user_dict = user.model_dump()
+        user_dict["password"] = hash_password(user_dict["password"])
+        user_dict["referral_code"] = referral_code
+        user_dict["referral_points"] = 0
+        user_dict["wallet_balance"] = 0.0
+        user_dict["reminderEnabled"] = True
+        user_dict["created_at"] = datetime.utcnow()
+        user_dict["role"] = user_dict.get("role") or "worker"
 
-    result = users_collection.insert_one(user_dict)
-    user_id = str(result.inserted_id)
+        result = users_collection.insert_one(user_dict)
+        user_id = str(result.inserted_id)
 
-    # --- AI Email Notification ---
-    if generate_email_content and send_email:
-        async def send_welcome_email():
-            email_body = await generate_email_content("register", user_dict["name"])
-            await send_email("Welcome to ShieldGig 🎉", user.email, email_body)
+        # --- AI Email Notification (Non-blocking) ---
+        if generate_email_content and send_email:
+            async def send_welcome_email_task():
+                try:
+                    email_body = await generate_email_content("register", user_dict["name"])
+                    await send_email("Welcome to ShieldGig 🎉", user.email, email_body)
+                    log_event(f"Welcome email sent to {user.email}")
+                except Exception as e:
+                    log_error(f"Background email task failed for {user.email}: {e}", traceback.format_exc())
             
-        background_tasks.add_task(send_welcome_email)
-    # ----------------------------
+            background_tasks.add_task(send_welcome_email_task)
+        # ----------------------------
 
-    response_data = user.model_dump(exclude={"password"})
-    response_data["id"] = user_id
-    response_data["referral_code"] = referral_code
-    response_data["referral_points"] = user_dict["referral_points"]
-    response_data["wallet_balance"] = user_dict["wallet_balance"]
-    response_data["reminderEnabled"] = True
+        log_event(f"New user registered: {user.email}")
 
-    return response_data
+        response_data = {
+            "id": user_id,
+            "name": user_dict["name"],
+            "email": user_dict["email"],
+            "phone": user_dict.get("phone", "N/A"),
+            "platform": user_dict.get("platform", "None"),
+            "city": user_dict.get("city", "None"),
+            "role": user_dict["role"],
+            "referral_code": referral_code,
+            "referral_points": 0,
+            "wallet_balance": 0.0,
+            "reminderEnabled": True
+        }
+
+        return response_data
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error(f"CRITICAL: Registration failed for {user.email}\n{error_trace}")
+        raise HTTPException(status_code=500, detail="Registration failed due to server error. Please try again later.")
 
 
 @router.post("/login", response_model=UserResponse)
