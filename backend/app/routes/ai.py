@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Body
-import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 
@@ -8,9 +7,17 @@ load_dotenv()
 router = APIRouter()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+model = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-flash-latest')
+    try:
+        # Import lazily so the app can still boot if the Gemini/protobuf stack
+        # is broken on the hosting environment.
+        import google.generativeai as genai
+
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-flash-latest")
+    except Exception as e:
+        print(f"Warning: Gemini SDK init failed; AI route disabled: {e}")
 
 @router.post("/chat")
 async def ai_chat(payload: dict = Body(...)):
@@ -22,6 +29,8 @@ async def ai_chat(payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Prompt is required")
 
     try:
+        if model is None:
+            raise RuntimeError("Gemini model not initialized")
         # Contextual prompt for ShieldGig
         full_prompt = f"""
         You are ShieldGig AI, a helpful assistant for gig workers (Zomato, Swiggy, Amazon, etc.) in India.
