@@ -2,18 +2,20 @@ from datetime import datetime
 from typing import Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 
-from app.database.mongodb import (
+from app.db.mongodb import (
     users_collection,
     policies_collection,
-    reports_collection,
-    payments_collection,
-    claim_reports_collection,
-    wallet_transactions_collection,
+    claims_collection,
+    transactions_collection,
     reward_payouts_collection,
+    referrals_collection,
+    payments_collection
 )
+from app.utils.logger import log_event, log_error
+from app.utils.email import send_email
 
 
 router = APIRouter()
@@ -84,55 +86,61 @@ async def add_policy(policy: PolicyCreate):
 
 @router.get("/claims")
 async def get_all_claims():
-    return [serialize_mongo_doc(c) for c in claim_reports_collection.find()]
+    return [serialize_mongo_doc(c) for c in claims_collection.find().sort("created_at", -1)]
 
 
 @router.get("/pending-claims")
 async def get_pending_claims():
-    claims = claim_reports_collection.find({"status": {"$in": ["pending", "under_review"]}}).sort(
+    claims = claims_collection.find({"status": {"$in": ["pending", "under_review"]}}).sort(
         "created_at", -1
     )
     return [serialize_mongo_doc(c) for c in claims]
 
 
 @router.post("/verify-claim")
-async def verify_claim(body: VerifyClaimBody):
+async def verify_claim(body: VerifyClaimBody, background_tasks: BackgroundTasks):
     claim_oid = _safe_object_id(body.claim_id)
     if not claim_oid:
         raise HTTPException(status_code=400, detail="Invalid claim_id")
 
-    claim = claim_reports_collection.find_one({"_id": claim_oid})
+    claim = claims_collection.find_one({"_id": claim_oid})
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
+    user_id = claim.get("user_id")
+    user = users_collection.find_one({"_id": ObjectId(user_id)}) if user_id else None
+
     if body.status == "approved":
         payout_amt = float(body.payout_amount or 0)
-        worker_oid = _safe_object_id(str(claim.get("worker_id", "")))
-        if worker_oid:
-            users_collection.update_one({"_id": worker_oid}, {"$inc": {"wallet_balance": payout_amt}})
+        if user:
+            users_collection.update_one({"_id": user["_id"]}, {"$inc": {"wallet_balance": payout_amt}})
 
-        claim_reports_collection.update_one(
+        claims_collection.update_one(
             {"_id": claim_oid},
-            {"$set": {"status": "approved", "payout": payout_amt}},
+            {"$set": {"status": "approved", "payout": payout_amt, "verified_at": datetime.utcnow()}},
         )
 
-        wallet_transactions_collection.insert_one(
-            {
-                "user_id": str(claim.get("worker_id", "")),
-                "type": "claim_credit",
-                "amount": payout_amt,
-                "description": f"Claim Approved: {claim.get('report_type', 'Emergency')}",
-                "status": "approved",
-                "reference_payment_id": str(claim_oid),
-                "transaction_id": f"CLM-{str(claim_oid)}",
-                "created_at": datetime.utcnow(),
-            }
-        )
+        transactions_collection.insert_one({
+            "user_id": user_id,
+            "type": "credit",
+            "category": "claim_payout",
+            "amount": payout_amt,
+            "description": f"Claim Approved: {claim.get('type', 'Medical')}",
+            "status": "approved",
+            "reference_id": str(claim_oid),
+            "created_at": datetime.utcnow(),
+        })
 
+        if user:
+            background_tasks.add_task(send_email, "Claim Approved ✅", user["email"], f"Your claim for {claim.get('type')} has been approved. ₹{payout_amt} credited to your wallet.")
+        
+        log_event(f"Claim approved: {body.claim_id} for user {user_id}")
         return {"message": "Claim approved and paid out."}
 
     if body.status == "rejected":
-        claim_reports_collection.update_one({"_id": claim_oid}, {"$set": {"status": "rejected"}})
+        claims_collection.update_one({"_id": claim_oid}, {"$set": {"status": "rejected", "verified_at": datetime.utcnow()}})
+        if user:
+            background_tasks.add_task(send_email, "Claim Rejected ❌", user["email"], f"Your claim for {claim.get('type')} has been rejected.")
         return {"message": "Claim rejected."}
 
     raise HTTPException(status_code=400, detail="status must be approved or rejected")
@@ -188,7 +196,7 @@ async def get_pending_payments():
 
 
 @router.post("/approve-payment")
-async def approve_payment(body: ApprovePaymentBody):
+async def approve_payment(body: ApprovePaymentBody, background_tasks: BackgroundTasks):
     payment_oid = _safe_object_id(body.payment_id)
     if not payment_oid:
         raise HTTPException(status_code=400, detail="Invalid payment_id")
@@ -197,32 +205,37 @@ async def approve_payment(body: ApprovePaymentBody):
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
+    user_id = payment.get("user_id")
+    user = users_collection.find_one({"_id": ObjectId(user_id)}) if user_id else None
+
     if body.status == "approved":
         amount = float(payment.get("amount", 0))
-        user_oid = _safe_object_id(str(payment.get("user_id", "")))
-        if user_oid:
-            users_collection.update_one({"_id": user_oid}, {"$inc": {"wallet_balance": amount}})
+        if user:
+            users_collection.update_one({"_id": user["_id"]}, {"$inc": {"wallet_balance": amount}})
 
-        payments_collection.update_one({"_id": payment_oid}, {"$set": {"status": "approved"}})
+        payments_collection.update_one({"_id": payment_oid}, {"$set": {"status": "approved", "verified_at": datetime.utcnow()}})
 
-        wallet_transactions_collection.insert_one(
-            {
-                "user_id": str(payment.get("user_id", "")),
-                "type": "deposit",
-                "amount": amount,
-                "payment_method": payment.get("payment_method"),
-                "reference_payment_id": str(payment_oid),
-                "description": f"Deposit Verified: {payment.get('payment_method', 'Manual')}",
-                "status": "approved",
-                "transaction_id": payment.get("transaction_id"),
-                "created_at": datetime.utcnow(),
-            }
-        )
+        transactions_collection.insert_one({
+            "user_id": user_id,
+            "type": "credit",
+            "category": "deposit",
+            "amount": amount,
+            "description": f"Deposit Verified via {payment.get('payment_method', 'Manual')}",
+            "status": "approved",
+            "reference_id": payment.get("transaction_id"),
+            "created_at": datetime.utcnow(),
+        })
 
+        if user:
+            background_tasks.add_task(send_email, "Payment Approved ✅", user["email"], f"Your deposit of ₹{amount} has been approved and credited to your wallet.")
+
+        log_event(f"Payment approved: {body.payment_id} for user {user_id}")
         return {"message": "Payment approved and wallet balance updated."}
 
     if body.status == "rejected":
-        payments_collection.update_one({"_id": payment_oid}, {"$set": {"status": "rejected"}})
+        payments_collection.update_one({"_id": payment_oid}, {"$set": {"status": "rejected", "verified_at": datetime.utcnow()}})
+        if user:
+            background_tasks.add_task(send_email, "Payment Rejected ❌", user["email"], f"Your deposit of ₹{payment.get('amount')} has been rejected.")
         return {"message": "Payment rejected."}
 
     raise HTTPException(status_code=400, detail="status must be approved or rejected")
@@ -282,4 +295,3 @@ async def process_reward_payout(body: ProcessRewardPayoutBody):
         return {"message": "Payout rejected. Points refunded to worker."}
 
     raise HTTPException(status_code=400, detail="status must be approved or rejected")
-

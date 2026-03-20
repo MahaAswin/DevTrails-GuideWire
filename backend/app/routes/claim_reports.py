@@ -5,7 +5,7 @@ import os
 import uuid
 from bson import ObjectId
 
-from app.database.mongodb import claim_reports_collection, users_collection
+from app.db.mongodb import claim_reports_collection, users_collection
 
 router = APIRouter()
 

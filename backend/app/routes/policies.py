@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.database.mongodb import policies_collection
+from app.db.mongodb import policies_collection
 from app.routes.admin import serialize_mongo_doc
 
 router = APIRouter()

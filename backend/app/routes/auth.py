@@ -15,8 +15,10 @@ import asyncio
 # Enable insecure transport for local development (fixes 'mismatching_state' CSRF)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
+from passlib.context import CryptContext
+
 from app.models.user_model import UserCreate, UserLogin, UserResponse
-from app.database.mongodb import users_collection
+from app.db.mongodb import users_collection
 
 # Import AI utilities (wrapped in try for safety during install/setup)
 try:
@@ -51,14 +53,15 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
 
 security = HTTPBearer()
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def hash_password(password: str) -> str:
-    # Simple deterministic hash compatible with previous implementation
-    return password + "_hashed"
+    return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return hash_password(plain_password) == hashed_password
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict) -> str:

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body, status
-from app.database.mongodb import users_collection
+from app.db.mongodb import users_collection, db
 from bson import ObjectId
 from typing import Dict
 

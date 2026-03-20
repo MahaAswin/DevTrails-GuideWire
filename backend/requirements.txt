@@ -9,3 +9,6 @@ httpx
 itsdangerous
 python-multipart
 python-jose[cryptography]
+passlib[bcrypt]
+fastapi-mail
+google-generativeai

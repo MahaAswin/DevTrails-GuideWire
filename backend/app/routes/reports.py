@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from app.database.mongodb import reports_collection
+from app.db.mongodb import reports_collection, users_collection
 from datetime import datetime
 
 router = APIRouter()

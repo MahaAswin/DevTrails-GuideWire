@@ -5,17 +5,18 @@ from typing import List, Optional
 import os
 import uuid
 
-from app.database.mongodb import (
+from app.db.mongodb import (
     users_collection,
     payments_collection,
-    wallet_transactions_collection,
+    transactions_collection, # Unified collection
 )
+from app.utils.logger import log_event, log_error
 
 router = APIRouter()
 
 UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def serialize_mongo_doc(doc: dict) -> dict:
@@ -29,37 +30,22 @@ async def get_balance(email: str):
     user = users_collection.find_one({"email": email.lower()})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"wallet_balance": user.get("wallet_balance", 0)}
+    return {"wallet_balance": user.get("wallet_balance", 0.0)}
 
 
 @router.get("/transactions/{email}")
 async def get_transactions(email: str):
-    """
-    Wallet audit ledger for the wallet UI.
-    Frontend expects: created_at, amount, type, status?, description?, transaction_id?, id?
-    """
     user = users_collection.find_one({"email": email.lower()})
     if not user:
-        # Keep consistent with other endpoints: missing user is a hard error
         raise HTTPException(status_code=404, detail="User not found")
 
     user_id_str = str(user["_id"])
-    txs = list(wallet_transactions_collection.find({"user_id": user_id_str}).sort("created_at", -1))
-    serialized: List[dict] = []
-    for t in txs:
-        if "created_at" not in t:
-            t["created_at"] = datetime.utcnow()
-        if "status" not in t and t.get("type"):
-            t["status"] = "approved"
-        serialized.append(serialize_mongo_doc(t))
-    return serialized
+    txs = list(transactions_collection.find({"user_id": user_id_str}).sort("created_at", -1))
+    return [serialize_mongo_doc(t) for t in txs]
 
 
 @router.post("/convert-points")
 async def convert_points(payload: dict = Body(...)):
-    """
-    Convert 1000 referral points -> ₹10 and credit wallet only after conversion.
-    """
     user_id = payload.get("user_id")
     if not user_id:
         raise HTTPException(status_code=400, detail="user_id is required")
@@ -73,30 +59,25 @@ async def convert_points(payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Minimum 1000 points required for conversion")
 
     conversations = points // 1000
-    points_to_deduct = conversations * 1000
     amount_to_add = conversations * 10
 
     users_collection.update_one(
         {"_id": ObjectId(user_id)},
-        {"$inc": {"referral_points": -points_to_deduct, "wallet_balance": amount_to_add}},
+        {"$inc": {"referral_points": -(conversations * 1000), "wallet_balance": amount_to_add}},
     )
 
-    wallet_transactions_collection.insert_one(
-        {
-            "user_id": user_id,
-            "type": "reward_credit",
-            "amount": amount_to_add,
-            "description": f"Converted {points_to_deduct} points to ₹{amount_to_add}",
-            "status": "approved",
-            "created_at": datetime.utcnow(),
-        }
-    )
+    transactions_collection.insert_one({
+        "user_id": user_id,
+        "type": "credit",
+        "category": "referral_reward",
+        "amount": amount_to_add,
+        "description": f"Converted {conversations * 1000} points to ₹{amount_to_add}",
+        "status": "approved",
+        "created_at": datetime.utcnow(),
+    })
 
-    return {
-        "message": f"Successfully converted {points_to_deduct} points to ₹{amount_to_add}",
-        "new_points": points - points_to_deduct,
-        "new_balance": user.get("wallet_balance", 0) + amount_to_add,
-    }
+    log_event(f"Points converted for user {user_id}: {amount_to_add} INR")
+    return {"message": "Points converted successfully", "amount": amount_to_add}
 
 
 @router.post("/add-money")
@@ -108,14 +89,6 @@ async def add_money(
     worker_email: str = Form(...),
     screenshot: UploadFile = File(...),
 ):
-    """
-    Submit a deposit request. Admin approval flow should update `wallet_balance`
-    and write to `wallet_transactions`.
-    """
-    if not screenshot:
-        raise HTTPException(status_code=400, detail="Proof of payment image is required")
-
-    # Fraud prevention: check for duplicate transaction ID
     if payments_collection.find_one({"transaction_id": transaction_id}):
         raise HTTPException(status_code=400, detail="Transaction ID already exists.")
 
@@ -123,10 +96,10 @@ async def add_money(
     if not user:
         raise HTTPException(status_code=404, detail="Worker not found")
 
-    file_extension = os.path.splitext(screenshot.filename)[1] if screenshot.filename else ""
-    screenshot_filename = f"pay_{uuid.uuid4()}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, screenshot_filename)
-    with open(file_path, "wb") as f:
+    ext = os.path.splitext(screenshot.filename)[1] if screenshot.filename else ".jpg"
+    filename = f"pay_{uuid.uuid4()}{ext}"
+    path = os.path.join(UPLOAD_DIR, filename)
+    with open(path, "wb") as f:
         f.write(await screenshot.read())
 
     payment_doc = {
@@ -135,25 +108,51 @@ async def add_money(
         "amount": amount,
         "payment_method": payment_method,
         "transaction_id": transaction_id,
-        "screenshot_url": screenshot_filename,
+        "screenshot_url": filename,
         "status": "pending",
         "created_at": datetime.utcnow(),
     }
 
     result = payments_collection.insert_one(payment_doc)
 
-    # --- AI Email Notification ---
-    from app.utils.ai_email import generate_email_content
+    # Use email utility for notification
     from app.utils.email import send_email
-    
-    async def send_payment_email():
-        try:
-            email_body = await generate_email_content("payment", user["name"], amount)
-            await send_email("Payment Successful 💰", user["email"], email_body)
-        except Exception as e:
-            print(f"Error executing email task: {e}")
-        
-    background_tasks.add_task(send_payment_email)
-    # ----------------------------
+    background_tasks.add_task(
+        send_email,
+        "Payment Submitted 💰",
+        user["email"],
+        f"Hello {user['name']}, your payment of ₹{amount} has been submitted and is pending admin approval."
+    )
 
-    return {"message": "Payment submitted successfully. Waiting for admin verification.", "payment_id": str(result.inserted_id)}
+    return {"message": "Payment submitted successfully", "payment_id": str(result.inserted_id)}
+
+@router.post("/debit")
+async def debit_wallet(payload: dict = Body(...)):
+    """Internal/Admin tool to debit wallet, preventing negative balance"""
+    user_id = payload.get("user_id")
+    amount = float(payload.get("amount", 0))
+    description = payload.get("description", "Wallet Debit")
+
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    current_balance = user.get("wallet_balance", 0.0)
+    if current_balance < amount:
+        raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+
+    users_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$inc": {"wallet_balance": -amount}}
+    )
+
+    transactions_collection.insert_one({
+        "user_id": user_id,
+        "type": "debit",
+        "amount": amount,
+        "description": description,
+        "status": "approved",
+        "created_at": datetime.utcnow()
+    })
+
+    return {"message": "Wallet debited successfully", "new_balance": current_balance - amount}
