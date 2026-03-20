@@ -1,17 +1,26 @@
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure Gemini
+# IMPORTANT:
+# Importing `google.generativeai` (and its protobuf dependency chain) can crash at
+# import-time on some hosting environments / Python versions.
+# So we only import/configure it when `GEMINI_API_KEY` is present, and we guard it.
 api_key = os.getenv("GEMINI_API_KEY")
+model = None
+
 if api_key:
-    genai.configure(api_key=api_key)
-    # Using gemini-flash-latest for production efficiency
-    model = genai.GenerativeModel('gemini-flash-latest')
+    try:
+        import google.generativeai as genai
+
+        genai.configure(api_key=api_key)
+        # Using gemini-flash-latest for production efficiency
+        model = genai.GenerativeModel("gemini-flash-latest")
+    except Exception as e:
+        # If AI dependencies are broken, don't prevent the API from hosting.
+        print(f"Warning: Gemini SDK init failed, AI emails disabled: {e}")
 else:
-    model = None
     print("Warning: GEMINI_API_KEY not found in environment for AI emails")
 
 async def generate_email_content(event_type: str, user_name: str, amount: float = None) -> str:
@@ -29,7 +38,7 @@ async def generate_email_content(event_type: str, user_name: str, amount: float 
                 "Output ONLY the HTML body content. No backticks, no markdown blocks."
             )
         elif event_type == "payment":
-            amount_str = f"₹{amount}" if amount else "your payment"
+            amount_str = f"INR {amount}" if amount else "your payment"
             prompt = (
                 f"Write a confirmation email for {user_name} acknowledging their payment of {amount_str}. "
                 "Output ONLY the HTML body content. No backticks, no markdown blocks."
